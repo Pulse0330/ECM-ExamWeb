@@ -1,78 +1,25 @@
-// import crypto from "crypto";
-// import type { LoginPayload, LoginType } from "@/types/login";
+import axios from "axios";
 
-// import api from "./axios";
+export const api = axios.create({
+  baseURL: "https://ottapp.ecm.mn/api",
+  headers: { "Content-Type": "application/json" },
+});
 
-// interface ProductReview {
-//   rating: number;
-//   comment: string;
-//   date: string;
-//   reviewerName: string;
-//   reviewerEmail: string;
-// }
+// Connection config (нэг газар хадгалах)
+export const conn = {
+  user: "edusr",
+  password: "sql$erver43",
+  database: "ikh_ott",
+  server: "172.16.1.79",
+  pool: { max: 100000, min: 0, idleTimeoutMillis: 30000000 },
+  options: { encrypt: false, trustServerCertificate: false },
+};
 
-// interface ProductDimensions {
-//   width: number;
-//   height: number;
-//   depth: number;
-// }
-
-// interface ProductMeta {
-//   createdAt: string;
-//   updatedAt: string;
-//   barcode: string;
-//   qrCode: string;
-// }
-
-// export interface Product {
-//   id: number;
-//   title: string;
-//   description: string;
-//   category: string;
-//   price: number;
-//   discountPercentage: number;
-//   rating: number;
-//   stock: number;
-//   tags: string[];
-//   brand: string;
-//   sku: string;
-//   weight: number;
-//   dimensions: ProductDimensions;
-//   warrantyInformation: string;
-//   shippingInformation: string;
-//   availabilityStatus: string;
-//   reviews: ProductReview[];
-//   returnPolicy: string;
-//   minimumOrderQuantity: number;
-//   meta: ProductMeta;
-//   thumbnail: string;
-//   images: string[];
-// }
-
-// interface ProductListResponse {
-//   products: Product[];
-//   total: number;
-//   skip: number;
-//   limit: number;
-// }
-
-// //--------------------------------------------------------
-
-// export const LoginUser = async ({
-//   username,
-//   password,
-// }: LoginPayload): Promise<LoginType> => {
-//   const hashPassword = crypto
-//     .createHash("md5")
-//     .update(password, "ucs-2")
-//     .digest("hex");
-//   const res = await api.post<LoginType>("/login", {
-//     username,
-//     password: hashPassword,
-//   "deviceid":"",
-//         "devicemodel":"",
-//   });
-//   return res.data;
-// };
-
-
+// API: HomeScreen
+export const getHomeScreen = async (user_id: number) => {
+  const { data } = await api.post("/gethomescreen", {
+    user_id,
+    conn,
+  });
+  return data;
+};

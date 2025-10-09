@@ -6,6 +6,9 @@ const LoginPage: React.FC = () => {
   return (
     <div>
       <LoginForm />
+      <div className="fixed top-4 right-4 z-50"> 
+        <AnimatedThemeToggler/>
+      </div>
     </div>
   );
 };

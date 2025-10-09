@@ -49,10 +49,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Хэрэв токен байхгүй бол login руу чиглүүлэх
-  if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+
 
   // Токен байгаа бол үргэлжлүүлэх
   return NextResponse.next();

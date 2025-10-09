@@ -1,3 +1,30 @@
+// "use client";
+
+// import { useQuery } from "@tanstack/react-query";
+// import { getHomeScreen } from "@/lib/axios";
+// import { useState, useEffect } from "react";
+
+// export default function HomePage() {
+//   const [userId, setUserId] = useState<number | null>(null);
+
+//   useEffect(() => {
+//     const id = localStorage.getItem("userId");
+//     if (id) setUserId(Number(id));
+//   }, []);
+
+//   const { data: homeData, isPending, isError } = useQuery({
+//     queryKey: ["homeScreen", userId],
+//     queryFn: () => getHomeScreen(userId!),
+   
+//   });
+
+//   return (
+//     <div>
+//       <h1>Тавтай морилно уу!</h1>
+//       <pre>{JSON.stringify(homeData, null, 2)}</pre>
+//     </div>
+//   );
+// }
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
