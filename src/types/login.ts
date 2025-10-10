@@ -10,7 +10,7 @@ export interface LoginType {
     ResponseCode: string;
     ResponseType: boolean;
   };
-  RetData: number; // user ID as number
+  RetData: number; 
 }
 
 export interface LoginData {
@@ -19,22 +19,22 @@ export interface LoginData {
 }
 
 export interface Profile {
-  id: string;
-  login_name: string;
-  user_code?: string | null;
+  id: string; // "74588"
+  login_name: string; // "ES4010065211"
+  user_code?: string | null; // possibly null
   phone?: string | null;
-  password: string;
-  fname?: string | null;
-  reg_number?: string | null;
-  email?: string | null;
-  lastname?: string | null;
-  firstname?: string | null;
-  school_id?: number | null;
-  school_name?: string | null;
-  img?: string | null;
-  expired_date?: string | null;
-  expired?: number | null;
-  ugroup?: number | null;
-  personId?: string | null;
+  password: string; // hashed password
+  fname?: string | null; // combined name?
+  reg_number?: string | null; // "ТЕ93121111"
+  email?: string | null; // e.g. "&nbsp;" or null
+  lastname?: string | null; // "Ганбаатар"
+  firstname?: string | null; // "Анхбаяр"
+  school_id?: number | null; // 3157
+  school_name?: string | null; // includes trailing tab in example
+  img?: string | null; // "Modules/SysUsr/AvatarPhoto/01.png"
+  expired_date?: string | null; // null or ISO date string
+  expired?: number | null; // 0/1
+  ugroup?: number | null; // 4
+  personId?: string | null; // "90000001338849"
   ebarimtNum?: string | null;
 }

@@ -9,7 +9,6 @@ import MatchingByLineWrapper from "@/components/question/matchingWrapper";
 import MiniMap from "@/app/exam/minimap";
 import ITimer from "@/app/exam/itimer";
 import { Flag } from "lucide-react";
-import { ExamProctor } from "@/components/question/examguard";
 import { useRouter } from "next/navigation";
 
 export default function Page({
@@ -24,80 +23,17 @@ export default function Page({
   const [answers, setAnswers] = useState<any[]>([]);
   const [examInfo, setExamInfo] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
 
   const [selectedAnswers, setSelectedAnswers] = useState<{
     [key: number]: number | number[] | string | Record<string, string> | null;
   }>({});
 
   const [bookmarks, setBookmarks] = useState<number[]>([]);
-  const userId = "222283";
-
-  // --- Submit Handler ---
-  const handleSubmit = async () => {
-    // Баталгаажуулалт
-    const unanswered = questions.filter((q) => !selectedAnswers[q.question_id]);
-
-    if (unanswered.length > 0) {
-      const confirm = window.confirm(
-        `Та ${unanswered.length} асуултанд хариулаагүй байна. Үргэлжлүүлэх үү?`
-      );
-      if (!confirm) return;
-    }
-
-    const finalConfirm = window.confirm(
-      "Та шалгалтаа дуусгахдаа итгэлтэй байна уу?"
-    );
-    if (!finalConfirm) return;
-
-    setSubmitting(true);
-
-    try {
-      // Хариултуудыг форматлах
-      const formattedAnswers = Object.entries(selectedAnswers).map(
-        ([questionId, answer]) => ({
-          question_id: Number(questionId),
-          answer: answer,
-        })
-      );
-
-      const res = await fetch("https://ottapp.ecm.mn/api/submitexam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: Number(userId),
-          exam_id: Number(examId),
-          answers: formattedAnswers,
-          conn: {
-            user: "edusr",
-            password: "sql$erver43",
-            database: "ikh_skuul",
-            server: "172.16.1.79",
-            pool: { max: 100000, min: 0, idleTimeoutMillis: 30000000 },
-            options: { encrypt: false, trustServerCertificate: false },
-          },
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.RetResponse?.ResponseType) {
-        alert("✅ Шалгалт амжилттай илгээгдлээ!");
-        router.push("/examlist");
-      } else {
-        alert("❌ Алдаа гарлаа: " + (data.RetResponse?.Message || ""));
-      }
-    } catch (err) {
-      console.error(err);
-      alert("❌ Сүлжээний алдаа гарлаа");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+  const userId = "248064";
   const handleAutoSubmit = () => {
     console.log("⏳ Шалгалт автоматаар submit хийж байна...");
-    handleSubmit();
+    alert("Шалгалт автоматаар дууслаа.");
+    router.push("/home");
   };
 
   const handleLogout = () => {
@@ -169,27 +105,24 @@ export default function Page({
     );
   };
 
-  // Хариулсан асуултын тоо тооцоолох
-  const answeredCount = Object.keys(selectedAnswers).filter(
-    (key) => selectedAnswers[Number(key)]
-  ).length;
-
   if (loading)
     return <div className="p-4 text-lg font-semibold">Татаж байна...</div>;
 
   return (
     <div className="flex flex-col gap-4 p-4">
       {/* 🧠 Шалгалтын хяналтын систем */}
-      {/* <ExamProctor
-        userId={userId}
-        onSubmit={handleAutoSubmit}
-        onLogout={handleLogout}
-      /> */}
 
       <div className="flex gap-4">
         {/* Зүүн тал: MiniMap */}
         <div className="w-1/6 flex-shrink-0">
-          <div className="sticky top-4 max-h-[calc(100vh-8rem)] overflow-y-auto"></div>
+          <div className="sticky top-4 max-h-[calc(100vh-8rem)] overflow-y-auto">
+            <MiniMap
+              questions={questions}
+              choosedAnswers={selectedAnswers as Record<number, number>}
+              bookmarks={bookmarks}
+              onJump={handleJumpToQuestion}
+            />
+          </div>
         </div>
 
         {/* Гол хэсэг: Асуултууд */}
@@ -306,27 +239,6 @@ export default function Page({
               )}
             </div>
           ))}
-
-          {/* Submit товч */}
-          <div className="sticky bottom-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-border">
-            <div className="flex justify-between items-center">
-              <div className="text-sm">
-                Хариулсан: <span className="font-bold">{answeredCount}</span> /{" "}
-                {questions.length}
-              </div>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-                  submitting
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                }`}
-              >
-                {submitting ? "Илгээж байна..." : "🎯 Шалгалт дуусгах"}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Баруун тал: Timer */}

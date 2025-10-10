@@ -8,10 +8,8 @@ import {
   Trophy,
   Zap,
   Lightbulb,
-  Speaker,
   Calendar,
   DollarSign,
-  ExternalLink,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -19,91 +17,8 @@ import {
 const cn = (...classes: (string | undefined)[]) =>
   classes.filter(Boolean).join(" ");
 
-// ===============================================
-// 1. ИНТЕРФЕЙСҮҮД (Interfaces)
-// ===============================================
-
-interface Advertisement {
-  title: string;
-  descr: string;
-  filename: string;
-  url: string;
-}
-
-interface ExamPlan {
-  planid: number;
-  title: string;
-  amount: number;
-  ispay: number;
-  paydescr: string;
-  rate: string;
-  ispurchased: number; // 1: Purchased, 0: Not Purchased
-}
-
-interface ActiveExamRaw {
-  exam_id: number;
-  title: string;
-  ognoo: string;
-  exam_minute: number;
-  amount: number;
-  ispaydescr: string;
-  teach_name: string;
-}
-
-interface SuggestedExam {
-  exam_id: number;
-  name: string;
-  date: string;
-  time: string;
-  countdown: string;
-  reason: string;
-  teacher: string;
-}
-
-interface HomeScreenData {
-  title: string;
-  totalExams: number;
-  userProfile: {
-    username: string;
-    lastLogin: string;
-  };
-  completionRate: number;
-  lastActivityExam: string;
-  latestScore: number;
-
-  announcements: Advertisement[];
-  examPackages: ExamPlan[];
-  suggestedExam: SuggestedExam;
-}
-
-// ===============================================
-// 2. RAW JSON ӨГӨГДӨЛ (Mock API Data)
-// ===============================================
-
-// Функц: Огноог задлах болон Countdown тооцоолох (Mock)
-const parseExamData = (rawExam: ActiveExamRaw): SuggestedExam => {
-  const [datePart, timePart] = rawExam.ognoo.split(" ");
-  const isUpcoming = new Date(rawExam.ognoo) > new Date("2025-10-08");
-  const countdown = isUpcoming ? "Ойрын хугацаанд" : "Өнөөдөр!";
-
-  return {
-    exam_id: rawExam.exam_id,
-    name: rawExam.title.trim(),
-    date: datePart.replace(/-/g, "/"),
-    time: timePart,
-    countdown: countdown,
-    reason: `Багш ${rawExam.teach_name} танд санал болгож байна.`,
-    teacher: rawExam.teach_name,
-  };
-};
-
-// ===============================================
-// Нүүр хуудасны үндсэн компонент (Homepage)
-// ===============================================
-
 export default function Home() {
-  const [data, setData] = useState<HomeScreenData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [metricVisibility, setMetricVisibility] = useState({
@@ -139,7 +54,6 @@ export default function Home() {
       className={cn(
         "p-6 rounded-2xl transition-all duration-500 shadow-xl cursor-pointer",
         "hover:shadow-2xl hover:translate-y-[-4px]",
-
         "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50 border border-gray-100 dark:border-gray-800 hover:shadow-indigo-300/50 dark:hover:shadow-indigo-700/50",
         className
       )}
@@ -176,9 +90,7 @@ export default function Home() {
         className={cn(
           "relative p-8 rounded-3xl overflow-hidden cursor-pointer",
           "transition-all duration-300 hover:scale-[1.01]",
-
           lightModeClasses,
-
           darkModeClasses,
           className
         )}
@@ -188,9 +100,7 @@ export default function Home() {
           <div
             className={cn(
               "absolute w-2/3 h-2/3 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-[magic-move_10s_linear_infinite] bg-gradient-to-r",
-
               "from-blue-200/50 to-indigo-200/50",
-
               "dark:from-indigo-500/70 dark:to-fuchsia-500/70"
             )}
             style={{ left: "50%", top: "50%" }}
@@ -221,7 +131,6 @@ export default function Home() {
         className={cn(
           "inline-block text-6xl font-extrabold mt-2 px-2 py-1 select-none blur-sm transition-all duration-300",
           colorClass,
-          // Slightly reduce blur effect to be more readable as a placeholder
           "text-gray-300 dark:text-gray-700"
         )}
       >
@@ -231,7 +140,6 @@ export default function Home() {
   };
 
   if (isLoading) {
-    // Loading state
     return (
       <div
         className={cn(
@@ -245,24 +153,6 @@ export default function Home() {
             <p className="text-lg text-gray-600 dark:text-gray-400">
               Өгөгдөл татаж байна...
             </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div
-        className={cn(
-          backgroundClass,
-          "font-inter min-h-screen transition-colors duration-500"
-        )}
-      >
-        <main className="flex justify-center items-center py-16 min-h-screen">
-          <div className="max-w-4xl w-full text-center p-8 bg-red-600/10 border border-red-400 text-red-700 dark:bg-red-800/20 dark:border-red-600 dark:text-red-400 rounded-xl shadow-md">
-            <p className="font-bold text-xl mb-2">😭 Ачааллын алдаа</p>
-            <p>{error || "Өгөгдөл олдсонгүй."}</p>
           </div>
         </main>
       </div>
@@ -314,7 +204,7 @@ export default function Home() {
                 Сайн байна уу,
               </p>
               <h1 className="text-5xl font-extrabold tracking-tight flex items-center mt-1 text-gray-900 dark:text-white">
-                {data.userProfile.username}!
+                Болд
               </h1>
             </div>
           </header>
@@ -323,32 +213,20 @@ export default function Home() {
             <div
               className={cn(
                 "flex justify-between items-start mb-6 pb-3 border-b",
-
                 "border-indigo-300/70 dark:border-indigo-400/50"
               )}
             >
               <div className="flex items-center space-x-3">
                 <Lightbulb className="w-8 h-8 flex-shrink-0 text-yellow-600 dark:text-yellow-300" />
-
                 <p className="text-xl font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-200">
                   Танд ойр шалгалт
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-600 dark:text-indigo-300 flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" />{" "}
-                  {data.suggestedExam.date} | {data.suggestedExam.time}
+                  <Calendar className="w-4 h-4 mr-1" />
+                  2024-12-20
                 </p>
-                <div
-                  className={cn(
-                    "mt-1 px-3 py-1 rounded-full text-xs font-bold inline-block animate-pulse",
-                    data.suggestedExam.countdown === "Өнөөдөр!"
-                      ? "bg-yellow-400 text-gray-900 shadow-xl"
-                      : "bg-indigo-600 text-white shadow-xl"
-                  )}
-                >
-                  {data.suggestedExam.countdown}
-                </div>
               </div>
             </div>
 
@@ -358,19 +236,16 @@ export default function Home() {
                   className={cn(
                     "text-6xl font-extrabold text-transparent bg-clip-text transition-all hover:text-white/90 dark:hover:text-white/90",
                     "bg-gradient-to-r from-blue-700 to-purple-700",
-
                     "dark:from-white dark:to-indigo-300"
                   )}
                 >
-                  {data.suggestedExam.name}
+                  Математик
                 </h3>
-                {/* Light: text-gray-700, Dark: text-indigo-200 */}
                 <p className="text-lg mt-1 pt-1 italic text-gray-700 dark:text-indigo-200">
-                  Шалтгаан: {data.suggestedExam.reason}
+                  Шалтгаан: Улирлын шалгалт
                 </p>
-                {/* Light: text-indigo-500, Dark: text-indigo-400 */}
                 <p className="text-sm font-medium text-indigo-500 dark:text-indigo-400">
-                  Багш: {data.suggestedExam.teacher}
+                  Багш: Б.Дорж
                 </p>
               </div>
 
@@ -382,7 +257,7 @@ export default function Home() {
                     "dark:bg-indigo-700 dark:text-white dark:hover:bg-indigo-800"
                   )}
                 >
-                  <span className="text-xl tracking-wide">Эхлэх </span>
+                  <span className="text-xl tracking-wide">Эхлэх</span>
                   <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
@@ -415,13 +290,13 @@ export default function Home() {
                 <TrendingUp className="w-6 h-6 text-green-500" />
               </div>
               {renderMetricValue(
-                data?.completionRate || 0,
+                87,
                 "text-green-500",
                 metricVisibility.showCompletionRateValue,
                 "%"
               )}
               <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">
-                Нийт {data?.totalExams || 0} шалгалтын дундаж
+                Нийт шалгалтын дундаж
               </p>
             </DashboardCard>
 
@@ -450,12 +325,12 @@ export default function Home() {
                 <Trophy className="w-6 h-6 text-yellow-500" />
               </div>
               {renderMetricValue(
-                data?.latestScore || 0,
+                92,
                 "text-yellow-500",
                 metricVisibility.showLatestScoreValue
               )}
               <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">
-                {data?.lastActivityExam}-ийн үр дүн
+                2024-12-15-ийн үр дүн
               </p>
             </DashboardCard>
 
@@ -484,7 +359,7 @@ export default function Home() {
                 <Zap className="w-6 h-6 text-purple-500" />
               </div>
               {renderMetricValue(
-                data?.totalExams || 0,
+                24,
                 "text-purple-500",
                 metricVisibility.showTotalExamsValue
               )}
@@ -493,193 +368,162 @@ export default function Home() {
               </p>
             </DashboardCard>
           </div>
+
           <div className="py-4" style={getAnimationStyles(600)}>
             <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
               Шалгалт
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <p className="text-gray-500 dark:text-gray-400 col-span-3 text-center py-8">
+                Одоогоор шалгалт байхгүй байна
+              </p>
+            </div>
           </div>
+
           <div className="py-4" style={getAnimationStyles(600)}>
             <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
               Сорил
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <p className="text-gray-500 dark:text-gray-400 col-span-3 text-center py-8">
+                Одоогоор сорил байхгүй байна
+              </p>
+            </div>
           </div>
+
           <div className="py-4" style={getAnimationStyles(600)}>
             <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
               Тест
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <p className="text-gray-500 dark:text-gray-400 col-span-3 text-center py-8">
+                Одоогоор тест байхгүй байна
+              </p>
+            </div>
           </div>
-          {/* ====== Миний шалгалтын багцууд (Зөвхөн авсан) ====== */}
+
           <div className="py-4" style={getAnimationStyles(600)}>
             <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
               Миний шалгалтын багцууд
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {data?.examPackages
-                ?.filter((plan) => plan.ispurchased === 1)
-                .map((plan) => (
-                  <div
-                    key={plan.planid}
-                    className={cn(
-                      "relative p-6 rounded-2xl shadow-xl border transition-all duration-300 cursor-pointer group overflow-hidden",
-                      "hover:shadow-indigo-500/30 dark:hover:shadow-indigo-700/50 hover:scale-[1.03]",
-                      "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50",
-                      "border-4 border-green-500 shadow-green-400/50 dark:shadow-green-700/50"
-                    )}
-                  >
-                    <div className="absolute top-0 right-0 p-1 px-3 bg-green-500 text-white font-bold text-xs rounded-bl-lg rounded-tr-xl shadow-lg">
-                      Төлөгдсөн!
-                    </div>
+              <DashboardCard className="relative">
+                <div className="absolute top-0 right-0 p-1 px-3 bg-green-500 text-white font-bold text-xs rounded-bl-lg rounded-tr-xl shadow-lg">
+                  Төлөгдсөн!
+                </div>
 
-                    <div className="flex justify-between items-start mb-2 relative z-10">
-                      <h3 className="text-2xl font-extrabold">{plan.title}</h3>
-                      <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
-                        {plan.rate} <span className="ml-1">⭐</span>
-                      </div>
-                    </div>
-
-                    <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
-                      {plan.amount.toLocaleString()}
-                      <span className="text-2xl font-semibold ml-1">₮</span>
-                    </p>
-
-                    <p className="text-sm mt-1 flex items-center relative z-10 text-gray-500 dark:text-gray-400">
-                      <DollarSign className="w-4 h-4 mr-1 text-green-500" />{" "}
-                      Багц идэвхтэй
-                    </p>
-
-                    <button
-                      className={cn(
-                        "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
-                        "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50"
-                      )}
-                    >
-                      Эхлүүлэх
-                    </button>
+                <div className="flex justify-between items-start mb-2 relative z-10">
+                  <h3 className="text-2xl font-extrabold">Математик Pro</h3>
+                  <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
+                    4.8<span className="ml-1">⭐</span>
                   </div>
-                ))}
+                </div>
+
+                <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
+                  45,000
+                  <span className="text-2xl font-semibold ml-1">₮</span>
+                </p>
+
+                <p className="text-sm mt-1 flex items-center relative z-10 text-gray-500 dark:text-gray-400">
+                  <DollarSign className="w-4 h-4 mr-1 text-green-500" />
+                  Багц идэвхтэй
+                </p>
+
+                <button
+                  className={cn(
+                    "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
+                    "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50"
+                  )}
+                >
+                  Эхлүүлэх
+                </button>
+              </DashboardCard>
+
+              <DashboardCard className="relative">
+                <div className="absolute top-0 right-0 p-1 px-3 bg-green-500 text-white font-bold text-xs rounded-bl-lg rounded-tr-xl shadow-lg">
+                  Төлөгдсөн!
+                </div>
+
+                <div className="flex justify-between items-start mb-2 relative z-10">
+                  <h3 className="text-2xl font-extrabold">Физик Мастер</h3>
+                  <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
+                    4.6<span className="ml-1">⭐</span>
+                  </div>
+                </div>
+
+                <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
+                  38,000
+                  <span className="text-2xl font-semibold ml-1">₮</span>
+                </p>
+
+                <p className="text-sm mt-1 flex items-center relative z-10 text-gray-500 dark:text-gray-400">
+                  <DollarSign className="w-4 h-4 mr-1 text-green-500" />
+                  Багц идэвхтэй
+                </p>
+
+                <button
+                  className={cn(
+                    "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
+                    "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50"
+                  )}
+                >
+                  Эхлүүлэх
+                </button>
+              </DashboardCard>
             </div>
           </div>
 
-          {/* ====== Боломжит шалгалтын багцууд (Зөвхөн аваагүй) ====== */}
           <div className="py-4" style={getAnimationStyles(600)}>
             <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
               Боломжит Шалгалтын Багцууд
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {data?.examPackages
-                ?.filter((plan) => plan.ispurchased !== 1)
-                .map((plan) => (
-                  <div
-                    key={plan.planid}
-                    className={cn(
-                      "relative p-6 rounded-2xl shadow-xl border transition-all duration-300 cursor-pointer group overflow-hidden",
-                      "hover:shadow-indigo-500/30 dark:hover:shadow-indigo-700/50 hover:scale-[1.03]",
-                      "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50",
-                      "border-gray-100 dark:border-gray-800 hover:border-indigo-400"
-                    )}
-                  >
-                    <div className="flex justify-between items-start mb-2 relative z-10">
-                      <h3 className="text-2xl font-extrabold">{plan.title}</h3>
-                      <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
-                        {plan.rate} <span className="ml-1">⭐</span>
-                      </div>
-                    </div>
-
-                    <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
-                      {plan.amount.toLocaleString()}
-                      <span className="text-2xl font-semibold ml-1">₮</span>
-                    </p>
-
-                    <p className="text-sm mt-1 flex items-center relative z-10 text-gray-500 dark:text-gray-400">
-                      <DollarSign className="w-4 h-4 mr-1 text-green-500" />{" "}
-                      {plan.paydescr}
-                    </p>
-
-                    <button
-                      className={cn(
-                        "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
-                        "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/50"
-                      )}
-                    >
-                      Дэлгэрэнгүй
-                    </button>
+              <DashboardCard>
+                <div className="flex justify-between items-start mb-2 relative z-10">
+                  <h3 className="text-2xl font-extrabold">Хими Багц</h3>
+                  <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
+                    4.7<span className="ml-1">⭐</span>
                   </div>
-                ))}
-            </div>
-          </div>
-
-          <div className="" style={getAnimationStyles(800)}>
-            <DashboardCard
-              className="border-l-4 border-indigo-500 hover:translate-y-0 hover:shadow-xl"
-              delay={100}
-            >
-              <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">
-                <div className="flex items-center space-x-3">
-                  <Speaker className="w-7 h-7 mr-2 text-indigo-500 flex-shrink-0" />
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                    Үндсэн Зар Мэдээ
-                  </h2>
                 </div>
-                <a
-                  href="#"
-                  className="text-sm text-indigo-500 hover:text-indigo-400 flex items-center font-bold"
+
+                <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
+                  42,000
+                  <span className="text-2xl font-semibold ml-1">₮</span>
+                </p>
+
+                <button
+                  className={cn(
+                    "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
+                    "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/50"
+                  )}
                 >
-                  Бүгдийг харах <ArrowRight className="w-4 h-4 ml-1" />
-                </a>
-              </div>
-              {/* Scroll-гүй болгосон жагсаалт: h-48, overflow-y-auto, custom-scrollbar хасагдсан */}
-              <div className="space-y-4">
-                {data?.announcements.map((announcement, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "flex p-4 rounded-2xl transition-all cursor-pointer items-start group",
-                      // Enhanced List Item Styling (Frosted/Glass look in Light, Deep in Dark)
-                      "bg-indigo-50/70 backdrop-blur-sm dark:bg-gray-800/80 border border-indigo-100 dark:border-gray-700",
-                      "hover:shadow-lg hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/50"
-                    )}
-                  >
-                    {/* Image Container - Larger and more prominent */}
-                    <div className="w-24 h-24 flex-shrink-0 mr-4 overflow-hidden rounded-xl border-4 border-indigo-200 dark:border-indigo-700/50 shadow-md">
-                      <img
-                        src={
-                          announcement.filename ||
-                          "https://placehold.co/96x96/9333ea/ffffff?text=Zar"
-                        }
-                        alt={announcement.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src =
-                            "https://placehold.co/96x96/9333ea/ffffff?text=Zar";
-                        }}
-                      />
-                    </div>
-                    {/* Content */}
-                    <div className="flex flex-col justify-between h-full">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        {announcement.title}
-                      </h3>
-                      <p className="text-sm line-clamp-2 mt-1 text-gray-600 dark:text-gray-400">
-                        {announcement.descr.split("#")[0].trim()}
-                      </p>
-                      <a
-                        href={announcement.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-indigo-500 hover:text-indigo-400 flex items-center mt-2 font-bold"
-                      >
-                        Дэлгэрэнгүй харах{" "}
-                        <ExternalLink className="w-3 h-3 ml-1" />
-                      </a>
-                    </div>
+                  Дэлгэрэнгүй
+                </button>
+              </DashboardCard>
+
+              <DashboardCard>
+                <div className="flex justify-between items-start mb-2 relative z-10">
+                  <h3 className="text-2xl font-extrabold">Биологи Элит</h3>
+                  <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
+                    4.5<span className="ml-1">⭐</span>
                   </div>
-                ))}
-              </div>
-            </DashboardCard>
+                </div>
+
+                <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
+                  35,000
+                  <span className="text-2xl font-semibold ml-1">₮</span>
+                </p>
+
+                <button
+                  className={cn(
+                    "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
+                    "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/50"
+                  )}
+                >
+                  Дэлгэрэнгүй
+                </button>
+              </DashboardCard>
+            </div>
           </div>
         </div>
       </main>

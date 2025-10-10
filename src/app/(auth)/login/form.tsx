@@ -6,7 +6,7 @@ import { useTheme } from "next-themes";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import {toast} from "sonner";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
@@ -45,13 +45,18 @@ export default function LoginForm() {
   const [view, setView] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>();
 
   const mutation = useMutation<LoginType, any, LoginPayload>({
     mutationFn: ({ username, password }) => loginRequest(username, password),
     onSuccess: (res) => {
       if (res.RetResponse.ResponseType) {
         localStorage.setItem("userId", res.RetData.toString());
+        console.log("userId");
         toast.success("Амжилттай нэвтэрлээ");
         router.push("/home");
       } else {
@@ -63,10 +68,10 @@ export default function LoginForm() {
 
   const onSubmit = (data: LoginFormData) => mutation.mutate(data);
 
-  // Theme-д нийцсэн link color
-  const linkClass = theme === "dark"
-    ? "text-indigo-400 hover:text-indigo-300 underline"
-    : "text-indigo-600 hover:text-indigo-800 underline";
+  const linkClass =
+    theme === "dark"
+      ? "text-indigo-400 hover:text-indigo-300 underline"
+      : "text-indigo-600 hover:text-indigo-800 underline";
 
   return (
     <div className={cn("flex items-center justify-center min-h-screen px-4")}>
@@ -74,7 +79,9 @@ export default function LoginForm() {
         <Card className="p-0 max-w-full shadow-none border-none">
           <MagicCard gradientColor={gradientColor} className="p-0">
             <CardHeader className="border-b border-border p-4">
-              <CardTitle className="text-lg sm:text-xl">Тавтай морилно уу</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
+                Тавтай морилно уу
+              </CardTitle>
               <CardDescription className="text-sm sm:text-base">
                 Имэйл эсвэл утасны дугаараар нэвтрэнэ үү
               </CardDescription>
@@ -91,11 +98,15 @@ export default function LoginForm() {
                     id="username"
                     type="text"
                     placeholder="ES40100****"
-                    {...register("username", { required: "Нэвтрэх нэр оруулна уу" })}
+                    {...register("username", {
+                      required: "Нэвтрэх нэр оруулна уу",
+                    })}
                     disabled={mutation.isPending}
                   />
                   {errors.username && (
-                    <p className="text-xs sm:text-sm text-red-500">{errors.username.message}</p>
+                    <p className="text-xs sm:text-sm text-red-500">
+                      {errors.username.message}
+                    </p>
                   )}
                 </div>
 
@@ -108,7 +119,9 @@ export default function LoginForm() {
                     id="password"
                     type={view ? "text" : "password"}
                     placeholder="********"
-                    {...register("password", { required: "Нууц үг оруулна уу" })}
+                    {...register("password", {
+                      required: "Нууц үг оруулна уу",
+                    })}
                     disabled={mutation.isPending}
                     className="pr-10"
                   />
@@ -120,7 +133,9 @@ export default function LoginForm() {
                     {view ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                   {errors.password && (
-                    <p className="text-xs sm:text-sm text-red-500">{errors.password.message}</p>
+                    <p className="text-xs sm:text-sm text-red-500">
+                      {errors.password.message}
+                    </p>
                   )}
                 </div>
 
@@ -131,7 +146,9 @@ export default function LoginForm() {
                     checked={remember}
                     onCheckedChange={(checked) => setRemember(!!checked)}
                   />
-                  <Label htmlFor="remember" className="text-sm sm:text-base">Сануулах</Label>
+                  <Label htmlFor="remember" className="text-sm sm:text-base">
+                    Сануулах
+                  </Label>
                 </div>
               </CardContent>
 
@@ -146,16 +163,20 @@ export default function LoginForm() {
                   )}
                   disabled={mutation.isPending}
                 >
-                  {mutation.isPending  ? "Түр хүлээнэ үү..." : "Нэвтрэх"}
+                  {mutation.isPending ? "Түр хүлээнэ үү..." : "Нэвтрэх"}
                 </Button>
 
                 <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   Таньд бүртгэл байхгүй юу?{" "}
-                  <Link href="/sign" className={linkClass}>Бүртгүүлэх</Link>
+                  <Link href="/sign" className={linkClass}>
+                    Бүртгүүлэх
+                  </Link>
                 </div>
 
                 <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  <Link href="/forget" className={linkClass}>Нууц үг мартсан уу?</Link>
+                  <Link href="/forget" className={linkClass}>
+                    Нууц үг мартсан уу?
+                  </Link>
                 </div>
 
                 <AnimatedThemeToggler />

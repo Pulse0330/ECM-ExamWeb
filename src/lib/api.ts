@@ -23,3 +23,22 @@ export const getHomeScreen = async (user_id: number) => {
   });
   return data;
 };
+
+export const getExamlists = async (userId: number) => {
+  const { data } = await api.post("/getexamlists", {
+    user_id: userId,
+    optype: 0,
+    conn,
+  });
+  return data;
+};
+
+export const getSorullists = async (userId: number) => {
+  const { data } = await api.post("/getexamlists", {
+    user_id: userId,
+    optype: 1,
+    conn,
+  });
+  return data;
+};
+

@@ -1,6 +1,7 @@
 // src/lib/axios.ts
 import axios from "axios";
-
+import { getExamlists } from "@/lib/api";
+import { getSorullists } from "@/lib/api"; 
 // Login-ийн хариу type
 export interface LoginType {
   RetResponse: {
@@ -53,6 +54,40 @@ export const getHomeScreen = async (userId: number) => {
 
   return data;
 };
+// ===== " Examlists request =====
+
+export const fetchExamList = async (userId: number) => {
+  try {
+   
+    const examData = await getExamlists(userId);
+
+    if (!examData.RetResponse.ResponseType) {
+      throw new Error("Exam list fetch амжилтгүй: " + examData.RetResponse.ResponseMessage);
+    }
+
+    return examData; 
+  } catch (error: any) {
+    console.error("API алдаа:", error.message || error);
+    throw error;
+  }
+}
+
+export const fetchSorilList = async (userId: number) => {
+  try {
+    // getSorullists-ийг src/lib/api-аас авна
+    const examData = await getSorullists(userId); 
+
+    if (!examData.RetResponse.ResponseType) {
+      throw new Error("Soril list fetch амжилтгүй: " + examData.RetResponse.ResponseMessage);
+    }
+
+    return examData;
+  } catch (error: any) {
+    console.error("API алдаа:", error.message || error);
+    throw error;
+  }
+}
+
 
 // ===== Full dynamic usage example =====
 export const fetchHomeScreen = async (username: string, password: string) => {
@@ -63,7 +98,7 @@ export const fetchHomeScreen = async (username: string, password: string) => {
       throw new Error("Login failed: " + loginRes.RetResponse.ResponseMessage);
     }
 
-    const userId = loginRes.RetData; // ✅ user id
+    const userId = localStorage.userId; 
 
     // 2️⃣ Get HomeScreen
     const homeData = await getHomeScreen(userId);
@@ -73,3 +108,5 @@ export const fetchHomeScreen = async (username: string, password: string) => {
     throw error;
   }
 };
+
+

@@ -13,7 +13,6 @@ interface RootLayoutProps {
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
- 
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -24,14 +23,17 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en">
       <body>
         {mounted ? (
-          <ThemeProvider >
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark" // ← DARK MODE эхлэл
+            enableSystem={false}
+          >
             <QueryClientProvider client={queryClient}>
               {children}
               <Toaster position="top-right" richColors />
             </QueryClientProvider>
           </ThemeProvider>
         ) : (
-         
           <div />
         )}
       </body>

@@ -21,7 +21,6 @@ import { MagicCard } from "@/components/ui/magic-card";
 import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
 import { cn } from "@/lib/utils";
 
-// Бүртгүүлэх формын өгөгдлийн интерфейс
 interface SignUpFormData {
   username: string;
   email: string; // Шинээр нэмсэн
@@ -31,7 +30,6 @@ interface SignUpFormData {
 
 export default function SignUpForm() {
   const { theme } = useTheme();
-  // Dark/Light theme-ээс хамааран MagicCard-ын gradient өнгө
   const gradientColor = theme === "dark" ? "#262626" : "#D9D9D955";
 
   const [viewPassword, setViewPassword] = useState(false); // Нууц үг харах/нуух
