@@ -14,8 +14,6 @@ import { useTheme } from "next-themes";
 export default function IDock() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-
-  // Клиент дээр ажиллаж байгааг тэмдэглэх
   useEffect(() => {
     setMounted(true);
   }, []);

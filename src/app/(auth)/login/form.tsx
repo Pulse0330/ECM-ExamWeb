@@ -24,11 +24,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MagicCard } from "@/components/ui/magic-card";
 import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
 import { cn } from "@/lib/utils";
-
+//zod
 import { useMutation } from "@tanstack/react-query";
-import { loginRequest } from "@/lib/axios";
+import { loginRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import { LoginPayload, LoginType } from "@/types/login";
 
 interface LoginFormData {
   username: string;
@@ -40,7 +39,8 @@ export default function LoginForm() {
   const router = useRouter();
   const gradientColor = theme === "dark" ? "#262626" : "#D9D9D955";
 
-  const setUserId = useAuthStore((state) => state.setUserId);
+  // Zustand store ашиглах - localStorage байхгүй
+  const { setUserId } = useAuthStore();
 
   const [view, setView] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -51,30 +51,21 @@ export default function LoginForm() {
     formState: { errors },
   } = useForm<LoginFormData>();
 
-  const mutation = useMutation<LoginType, any, LoginPayload>({
-    mutationFn: ({ username, password }) => loginRequest(username, password),
+  const mutation = useMutation({
+    mutationFn: ({ username, password }: LoginFormData) =>
+      loginRequest(username, password),
     onSuccess: (res) => {
-      if (res.RetResponse.ResponseType) {
-        localStorage.setItem("userId", res.RetData.toString());
-        console.log("userId");
-        toast.success("Амжилттай нэвтэрлээ");
-        router.push("/home");
-      } else {
-        toast.error(res.RetResponse.ResponseMessage);
-      }
+      setUserId(res.RetData);
+      console.log("Login амжилттай, userId:", res.RetData);
+      toast.success("Амжилттай нэвтэрлээ");
+      router.push("/home");
     },
-    onError: () => toast.error("Алдаа гарлаа, дахин оролдоно уу"),
   });
 
   const onSubmit = (data: LoginFormData) => mutation.mutate(data);
 
-  const linkClass =
-    theme === "dark"
-      ? "text-indigo-400 hover:text-indigo-300 underline"
-      : "text-indigo-600 hover:text-indigo-800 underline";
-
   return (
-    <div className={cn("flex items-center justify-center min-h-screen px-4")}>
+    <div className={cn("flex  items-center justify-center min-h-screen px-4")}>
       <NeonGradientCard className="w-full max-w-md shadow-2xl rounded-2xl">
         <Card className="p-0 max-w-full shadow-none border-none">
           <MagicCard gradientColor={gradientColor} className="p-0">
@@ -127,8 +118,9 @@ export default function LoginForm() {
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-10 text-gray-400"
+                    className="absolute right-2 top-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
                     onClick={() => setView(!view)}
+                    aria-label={view ? "Нууц үг нуух" : "Нууц үг харуулах"}
                   >
                     {view ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -146,7 +138,10 @@ export default function LoginForm() {
                     checked={remember}
                     onCheckedChange={(checked) => setRemember(!!checked)}
                   />
-                  <Label htmlFor="remember" className="text-sm sm:text-base">
+                  <Label
+                    htmlFor="remember"
+                    className="text-sm sm:text-base cursor-pointer"
+                  >
                     Сануулах
                   </Label>
                 </div>
@@ -156,7 +151,7 @@ export default function LoginForm() {
                 <Button
                   type="submit"
                   className={cn(
-                    "w-full",
+                    "w-full font-semibold",
                     theme === "dark"
                       ? "bg-indigo-500 hover:bg-indigo-400"
                       : "bg-indigo-600 hover:bg-indigo-700"
@@ -168,18 +163,22 @@ export default function LoginForm() {
 
                 <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   Таньд бүртгэл байхгүй юу?{" "}
-                  <Link href="/sign" className={linkClass}>
+                  <Link
+                    href="/sign"
+                    className="dark:text-indigo-400 dark:hover:text-indigo-300 underline text-indigo-600 hover:text-indigo-800"
+                  >
                     Бүртгүүлэх
                   </Link>
                 </div>
 
                 <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  <Link href="/forget" className={linkClass}>
+                  <Link
+                    href="/forget"
+                    className="dark:text-indigo-400 dark:hover:text-indigo-300 underline text-indigo-600 hover:text-indigo-800"
+                  >
                     Нууц үг мартсан уу?
                   </Link>
                 </div>
-
-                <AnimatedThemeToggler />
               </CardFooter>
             </form>
           </MagicCard>

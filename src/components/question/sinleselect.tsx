@@ -2,6 +2,7 @@
 
 import React, { memo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 interface AnswerData {
   answer_id: number;
@@ -49,7 +50,8 @@ function SingleSelectQuestion({
               onClick={() => handleSelect(option.answer_id)}
               variant="outline"
               disabled={isReviewMode}
-              className={`flex items-center gap-3 w-full justify-start text-left p-3 border rounded-md transition-colors
+              // Button-ы үндсэн стилийг тохируулав. (text-left-ийг устгасан, учир нь flex-ийн justify-start ашиглаж байна)
+              className={`flex items-center gap-3 w-full justify-start p-3 border rounded-md transition-colors h-auto
                 ${isSelected ? "border-primary bg-primary/10" : "border-border"}
                 ${isReviewMode ? "cursor-default opacity-70" : ""}
               `}
@@ -69,17 +71,23 @@ function SingleSelectQuestion({
                 )}
               </span>
 
-              {/* Зураг */}
+              {/* Зурагт зориулсан шинэ блок */}
               {option.answer_img && (
-                <img
-                  src={option.answer_img}
-                  alt={`Answer ${option.answer_id}`}
-                  className="w-16 h-16 object-contain rounded border"
-                />
+                <div className="flex-shrink-0 size-20 border rounded-md overflow-hidden bg-white">
+                  <Image
+                    src={option.answer_img}
+                    alt={`Answer ${option.answer_id}`}
+                    width={60}
+                    height={60}
+                    // Зургийг доторх хайрцагт тааруулахын тулд object-cover ашиглаж, хэмжээг нь тогтоов.
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               )}
 
-              {/* Сонголтын текст */}
+              {/* Сонголтын текст - текст урт бол олон мөрөөр харуулахын тулд flex-grow-г нэмэв */}
               <span
+                className="flex-grow min-w-0" // Текстийг олон мөрөнд хуваахын тулд нэмсэн.
                 dangerouslySetInnerHTML={{
                   __html: option.answer_name_html || "",
                 }}

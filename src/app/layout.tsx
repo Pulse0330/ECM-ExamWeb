@@ -25,11 +25,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
         {mounted ? (
           <ThemeProvider
             attribute="class"
-            defaultTheme="dark" // ← DARK MODE эхлэл
+            defaultTheme="dark"
             enableSystem={false}
           >
             <QueryClientProvider client={queryClient}>
-              {children}
+              <div className="container mx-auto">{children}</div>
               <Toaster position="top-right" richColors />
             </QueryClientProvider>
           </ThemeProvider>
