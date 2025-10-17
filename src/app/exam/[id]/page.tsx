@@ -324,9 +324,16 @@ const QuestionItem = React.memo(
         )}
 
         {question.que_type_id === 3 && (
-          <div className="text-gray-600 italic">
-            Question type 3 component - Нэмэх шаардлагатай
-          </div>
+          <MultiSelectQuestion
+            questionId={question.question_id}
+            questionText={question.question_name}
+            answers={answers}
+            mode="exam"
+            selectedAnswers={
+              Array.isArray(selectedAnswer) ? selectedAnswer : []
+            }
+            onAnswerChange={onMultiAnswerChange}
+          />
         )}
 
         {question.que_type_id === 4 && (

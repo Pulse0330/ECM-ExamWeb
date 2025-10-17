@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
-import { Home, Package, Settings, User, LogOut, Sun, Moon } from "lucide-react";
+import { Home, Package, Settings, User, LogOut } from "lucide-react";
 import {
   Dock,
   DockItem,
@@ -10,10 +10,12 @@ import {
   DockLabel,
 } from "@/components/ui/shadcn-io/dock";
 import { useTheme } from "next-themes";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 export default function IDock() {
-  const { setTheme, theme } = useTheme();
+  const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -51,17 +53,10 @@ export default function IDock() {
       {
         title: "Theme",
         icon: (
-          <div className="relative h-full w-full flex items-center justify-center text-neutral-600 dark:text-neutral-300">
-            {mounted ? (
-              theme === "light" ? (
-                <Moon size={20} />
-              ) : (
-                <Sun size={20} />
-              )
-            ) : null}
+          <div className="h-full w-full flex items-center justify-center">
+            {mounted && <AnimatedThemeToggler />}
           </div>
         ),
-        onClick: () => setTheme(theme === "light" ? "dark" : "light"),
       },
       {
         title: "LogOut",
@@ -71,7 +66,7 @@ export default function IDock() {
         href: "/LogOut",
       },
     ],
-    [theme, setTheme, mounted]
+    [theme, mounted]
   );
 
   return (
@@ -81,7 +76,7 @@ export default function IDock() {
           const content = (
             <DockItem
               className="aspect-square rounded-full bg-gray-200 dark:bg-neutral-800 transition hover:scale-105"
-              {...(item.onClick ? { onClick: item.onClick } : {})}
+              {...("onClick" in item ? { onClick: item.onClick } : {})}
             >
               <DockLabel>{item.title}</DockLabel>
               <DockIcon>{item.icon}</DockIcon>
