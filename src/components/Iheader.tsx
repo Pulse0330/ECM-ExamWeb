@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 export default function IHeader() {
   return (
     <>
-      {/* Desktop Header - Sticky, Always Visible */}
       <header
         className={cn(
           "hidden md:flex z-50 w-full h-14 lg:h-16 px-4 lg:px-6 items-center justify-center", // justify-end → баруун талд
@@ -25,7 +24,6 @@ export default function IHeader() {
         </div>
       </header>
 
-      {/* Mobile Dock - Fixed at bottom */}
       <div
         className={cn(
           "md:hidden fixed bottom-0 left-0 right-0 z-50",

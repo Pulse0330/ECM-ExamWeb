@@ -1,10 +1,10 @@
-// app/soril/[id]/page.tsx - Updated Component
+// app/soril/[id]/page.tsx - Fixed useQuery for Tanstack Query v5
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import SingleSelectQuestion from "@/components/question/sinleselect";
 import MultiSelectQuestion from "@/components/question/multiselect";
 import FillInTheBlankQuestionShadcn from "@/components/question/fillinblank";
@@ -31,52 +31,47 @@ type SelectedAnswersType = {
 
 export default function ExamPage() {
   const { id } = useParams();
+  const searchParams = useSearchParams();
   const userId = useAuthStore((s) => s.userId);
+  const requestedCount = searchParams.get("count");
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [examInfo, setExamInfo] = useState<ExamInfo[]>([]);
   const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersType>(
     {}
   );
   const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Fetch exam data
-  const examMutation = useMutation<
-    ApiExamResponse,
-    Error,
-    { userId: number; examId: number }
-  >({
-    mutationFn: ({ userId, examId }) => getExamById(userId, examId),
-    onSuccess: (data) => {
-      setQuestions(data.Questions || []);
-      setAnswers(data.Answers || []);
-      setExamInfo(data.ExamInfo || []);
-
-      // Load previous answers if exists
-      if (data.ChoosedAnswer && data.ChoosedAnswer.length > 0) {
-        const prevAnswers: SelectedAnswersType = {};
-        data.ChoosedAnswer.forEach((item) => {
-          if (item.QueID && item.AnsID) {
-            prevAnswers[item.QueID] = item.AnsID;
-          }
-        });
-        setSelectedAnswers(prevAnswers);
-      }
-    },
-    onError: (error) => {
-      console.error("Exam data fetch error:", error);
-      toast.error("Шалгалтын мэдээлэл татахад алдаа гарлаа");
-    },
+  const { data: examData } = useQuery<ApiExamResponse>({
+    queryKey: ["exam", userId, id],
+    queryFn: () => getExamById(userId!, Number(id)),
+    enabled: !!userId && !!id,
   });
 
-  // Load exam on mount
   useEffect(() => {
-    if (userId && id) {
-      examMutation.mutate({ userId, examId: Number(id) });
+    if (examData?.ChoosedAnswer && examData.ChoosedAnswer.length > 0) {
+      const prevAnswers: SelectedAnswersType = {};
+      examData.ChoosedAnswer.forEach((item) => {
+        if (item.QueID && item.AnsID) {
+          prevAnswers[item.QueID] = item.AnsID;
+        }
+      });
+      setSelectedAnswers(prevAnswers);
     }
-  }, [userId, id]);
+  }, [examData]);
+
+  // Extract data from query result
+  const questions = useMemo(() => examData?.Questions || [], [examData]);
+  const answers = useMemo(() => examData?.Answers || [], [examData]);
+  const examInfo = useMemo(() => examData?.ExamInfo || [], [examData]);
+
+  // Асуултыг тоогоор хязгаарлах
+  const displayQuestions = useMemo(() => {
+    if (!requestedCount) return questions;
+
+    const count = parseInt(requestedCount);
+    if (isNaN(count) || count <= 0) return questions;
+
+    return questions.slice(0, count);
+  }, [questions, requestedCount]);
 
   // Save answer mutation
   const saveMutation = useMutation<any, Error, SaveAnswerRequest>({
@@ -248,6 +243,8 @@ export default function ExamPage() {
     if (examInfo.length === 0) return null;
 
     const info = examInfo[0];
+    const actualQuestionCount = displayQuestions.length;
+
     return (
       <div className="mb-6 p-4 rounded border border-border">
         <div className="flex justify-between items-start">
@@ -257,7 +254,15 @@ export default function ExamPage() {
             {info.help && <p className="text-sm mb-2">{info.help}</p>}
             <div className="flex flex-wrap gap-4 text-sm">
               <div>Хугацаа: {info.minut} минут</div>
-              <div>Асуулт тоо: {info.que_cnt}</div>
+              <div>
+                Асуулт тоо:{" "}
+                <span className="font-bold text-blue-600">
+                  {actualQuestionCount}
+                </span>
+                {actualQuestionCount < info.que_cnt && (
+                  <span className="text-gray-500"> / {info.que_cnt}</span>
+                )}
+              </div>
               <div>Төрөл: {info.exam_type_name}</div>
               <div>Эхлэх цаг: {new Date(info.end_time).toLocaleString()}</div>
             </div>
@@ -273,31 +278,13 @@ export default function ExamPage() {
         </div>
       </div>
     );
-  }, [examInfo, isSaving, handleSaveAllAnswers]);
-
-  if (examMutation.isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg font-semibold">Татаж байна...</div>
-      </div>
-    );
-  }
-
-  if (examMutation.isError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg font-semibold text-red-500">
-          Алдаа гарлаа: {examMutation.error.message}
-        </div>
-      </div>
-    );
-  }
+  }, [examInfo, displayQuestions.length, isSaving, handleSaveAllAnswers]);
 
   return (
     <div className="flex gap-4 p-4 ">
       <div className="w-1/6 h-fit sticky top-4 self-start">
         <MiniMap
-          questions={questions}
+          questions={displayQuestions}
           choosedAnswers={selectedAnswers as Record<number, number>}
           bookmarks={bookmarks}
           onJump={handleJumpToQuestion}
@@ -307,7 +294,7 @@ export default function ExamPage() {
       <div className="w-4/6 space-y-6">
         {examInfoDisplay}
 
-        {questions.map((question) => (
+        {displayQuestions.map((question) => (
           <QuestionItem
             key={question.question_id}
             question={question}

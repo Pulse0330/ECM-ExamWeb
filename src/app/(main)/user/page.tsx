@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getUserProfile } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -15,17 +15,15 @@ import { Loader2 } from "lucide-react";
 export default function UserProfile() {
   const userId = useAuthStore((s) => s.userId);
 
-  const mutation = useMutation({
-    mutationFn: ({ id }: { id: number }) => getUserProfile(id),
+  const { data, isPending } = useQuery({
+    queryKey: ["userProfile", userId],
+    queryFn: () => getUserProfile(userId!),
+    enabled: !!userId,
   });
 
-  useEffect(() => {
-    if (userId) mutation.mutate({ id: userId });
-  }, [userId]);
+  const user = data?.RetData?.[0];
 
-  const user = mutation.data?.RetData?.[0];
-
-  if (mutation.isPending)
+  if (isPending)
     return (
       <div className="flex justify-center items-center min-h-[400px] dark:text-gray-300">
         <Loader2 className="animate-spin w-6 h-6" />

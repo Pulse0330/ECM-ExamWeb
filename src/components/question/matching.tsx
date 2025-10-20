@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Xarrow, { useXarrow, Xwrapper } from "react-xarrows";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { Check, ZoomIn } from "lucide-react"; // ZoomIn icon-ийг нэмсэн
+import { Check, ZoomIn } from "lucide-react";
 
 interface QuestionItem {
   refid: number;
@@ -48,7 +48,7 @@ const ImageDialog = ({
         type="button"
         className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
         title="Зургийг томруулах"
-        onClick={(e) => e.stopPropagation()} // Элемент дээрх үндсэн onClick-ийг зогсооно
+        onClick={(e) => e.stopPropagation()}
       >
         <ZoomIn className="w-4 h-4" />
       </button>
@@ -87,11 +87,44 @@ export default function MatchingByLine({
   const updateXarrow = useXarrow();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Questions болон Answers зөв ялгах - ref_child_id-ийн логикийг хадгалав.
-  const questionsOnly = questions.filter(
-    (a) => a.ref_child_id !== -1 && a.ref_child_id !== null
-  );
-  const answersOnly = answers.filter((a) => a.ref_child_id === -1);
+  // ✅ answer_id ашиглан unique болгох
+  const questionsOnly = useMemo(() => {
+    const filtered = questions.filter(
+      (a) => a.ref_child_id !== -1 && a.ref_child_id !== null
+    );
+
+    // Давхардсан answer_id-г арилгах
+    const seen = new Set<number>();
+    return filtered.filter((item) => {
+      if (seen.has(item.answer_id)) {
+        console.warn(`⚠️ Duplicate question answer_id: ${item.answer_id}`);
+        return false;
+      }
+      seen.add(item.answer_id);
+      return true;
+    });
+  }, [questions]);
+
+  const answersOnly = useMemo(() => {
+    const filtered = answers.filter((a) => a.ref_child_id === -1);
+
+    // Давхардсан answer_id-г арилгах
+    const seen = new Set<number>();
+    return filtered.filter((item) => {
+      if (seen.has(item.answer_id)) {
+        console.warn(`⚠️ Duplicate answer answer_id: ${item.answer_id}`);
+        return false;
+      }
+      seen.add(item.answer_id);
+      return true;
+    });
+  }, [answers]);
+
+  // Debug
+  useEffect(() => {
+    console.log("📝 Questions:", questionsOnly);
+    console.log("✅ Answers:", answersOnly);
+  }, [questionsOnly, answersOnly]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -115,16 +148,17 @@ export default function MatchingByLine({
     if (onMatchChange) {
       const matches: Record<number, number> = connections.reduce(
         (acc, conn) => {
-          const startRefId = parseInt(conn.start.replace("question-", ""));
-          const endRefId = parseInt(conn.end.replace("answer-", ""));
-          if (!isNaN(startRefId) && !isNaN(endRefId)) {
-            acc[startRefId] = endRefId;
+          const startAnswerId = parseInt(conn.start.replace("q-", ""));
+          const endAnswerId = parseInt(conn.end.replace("a-", ""));
+          if (!isNaN(startAnswerId) && !isNaN(endAnswerId)) {
+            acc[startAnswerId] = endAnswerId;
           }
           return acc;
         },
         {} as Record<number, number>
       );
 
+      console.log("🔗 Connections:", matches);
       onMatchChange(matches);
     }
     setTimeout(updateXarrow, 0);
@@ -135,40 +169,41 @@ export default function MatchingByLine({
     connections.some((conn) => conn.start === id || conn.end === id);
 
   const handleItemClick = (id: string, isQuestion: boolean) => {
+    console.log(`🖱️ Clicked: ${id}, isQuestion: ${isQuestion}`);
+
     const existingConnection = connections.find(
       (conn) => conn.start === id || conn.end === id
     );
 
     if (existingConnection) {
+      console.log("❌ Removing connection:", existingConnection);
       setConnections(connections.filter((conn) => conn !== existingConnection));
       setActiveStart("");
       return;
     }
 
     if (isQuestion) {
+      console.log("📌 Setting active start:", id);
       setActiveStart(id);
     } else if (activeStart) {
-      if (isConnected(id)) return;
+      if (isConnected(id)) {
+        console.log("⚠️ Already connected:", id);
+        return;
+      }
 
-      // ActiveStart-аас гарч буй хуучин холболтыг устгана (1:1 холболт)
       const connectionsWithoutOldStart = connections.filter(
         (c) => c.start !== activeStart
       );
 
-      setConnections([
-        ...connectionsWithoutOldStart,
-        { start: activeStart, end: id },
-      ]);
+      const newConnection = { start: activeStart, end: id };
+      console.log("✅ Adding connection:", newConnection);
+
+      setConnections([...connectionsWithoutOldStart, newConnection]);
       setActiveStart("");
     }
   };
 
-  /**
-   * Асуулт/Хариултын агуулгыг (зураг+текст) рендерлэх функц
-   * Dialogue-ийн логикийг эндээс салган, зөвхөн агуулгыг буцаадаг болгосон.
-   */
   const renderContent = (item: QuestionItem, isQuestion: boolean) => {
-    // Зурагтай бол зургийг жижиг хэмжээтэйгээр тексттэй зэрэгцүүлж харуулна.
     if (item.answer_img) {
       return (
         <div className="flex items-center gap-3 w-full">
@@ -187,58 +222,13 @@ export default function MatchingByLine({
         </div>
       );
     }
-    // Зураггүй бол зөвхөн текстийг буцаана.
     return (
       <span
-        className="font-medium text-gray-700 text-left"
+        className="font-medium text-gray-700"
         dangerouslySetInnerHTML={{ __html: item.answer_name_html }}
       />
     );
   };
-
-  /**
-   * Асуулт/Хариултын жагсаалтын элементийг рендерлэх үндсэн функц
-   */
-  const renderItem = (
-    item: QuestionItem,
-    isQuestion: boolean,
-    className: string,
-    onClick: () => void
-  ) => (
-    <div
-      key={`${isQuestion ? "question" : "answer"}-${item.refid}`}
-      id={`${isQuestion ? "question" : "answer"}-${item.refid}`}
-      onClick={onClick}
-      className={cn("cursor-pointer relative", className)}
-    >
-      {/* Зураг томруулах Dialog-ийг элемент бүрийн дотор нэмсэн */}
-      {item.answer_img && <ImageDialog item={item} isQuestion={isQuestion} />}
-
-      <div className="w-full h-full flex items-center justify-start text-left">
-        {isQuestion &&
-          item.answer_img &&
-          // Гар утасны загварт item.answer_img байгаа бол renderContent-ийг дуудна
-          renderContent(item, isQuestion)}
-        {isQuestion && !item.answer_img && (
-          <span
-            className="font-medium text-gray-700 text-left"
-            dangerouslySetInnerHTML={{ __html: item.answer_name_html }}
-          />
-        )}
-
-        {!isQuestion &&
-          item.answer_img &&
-          // Гар утасны загварт item.answer_img байгаа бол renderContent-ийг дуудна
-          renderContent(item, isQuestion)}
-        {!isQuestion && !item.answer_img && (
-          <span
-            className="font-medium text-gray-700 text-right w-full"
-            dangerouslySetInnerHTML={{ __html: item.answer_name_html }}
-          />
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="w-full relative" ref={containerRef}>
@@ -253,13 +243,11 @@ export default function MatchingByLine({
           /* ======================== MOBILE UI ======================== */
           <div className="space-y-6">
             {questionsOnly.map((q) => {
-              const qid = `question-${q.refid}`;
+              const qid = `q-${q.answer_id}`;
               const connectedAnswer = connections.find((c) => c.start === qid);
               const answerItem = connectedAnswer
                 ? answersOnly.find(
-                    (a) =>
-                      a.refid ===
-                      Number(connectedAnswer.end.replace("answer-", ""))
+                    (a) => `a-${a.answer_id}` === connectedAnswer.end
                   )
                 : null;
 
@@ -292,7 +280,7 @@ export default function MatchingByLine({
 
                   {answerItem && (
                     <div
-                      onClick={() => handleItemClick(qid, true)} // Дахин дарж холболтыг цуцлах
+                      onClick={() => handleItemClick(qid, true)}
                       className="pl-4 border-l-2 border-green-500 space-y-2 cursor-pointer"
                     >
                       <div className="text-sm text-muted-foreground">
@@ -313,9 +301,9 @@ export default function MatchingByLine({
                         Хариулт сонгоно уу:
                       </div>
                       {answersOnly
-                        .filter((a) => !isConnected(`answer-${a.refid}`))
+                        .filter((a) => !isConnected(`a-${a.answer_id}`))
                         .map((a) => {
-                          const aid = `answer-${a.refid}`;
+                          const aid = `a-${a.answer_id}`;
                           return (
                             <div
                               key={aid}
@@ -347,10 +335,10 @@ export default function MatchingByLine({
             {/* Асуултын багана */}
             <div className="flex-1">
               <h3 className="border-b pb-2.5 mb-2 font-medium text-gray-700">
-                Эхний багана
+                Асуултын багана
               </h3>
-              {questionsOnly.map((a) => {
-                const qid = `question-${a.refid}`;
+              {questionsOnly.map((q) => {
+                const qid = `q-${q.answer_id}`;
                 return (
                   <div
                     key={qid}
@@ -368,20 +356,19 @@ export default function MatchingByLine({
                         "bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm"
                     )}
                   >
-                    {renderContent(a, true)}
-                    {a.answer_img && <ImageDialog item={a} isQuestion={true} />}
+                    {renderContent(q, true)}
+                    {q.answer_img && <ImageDialog item={q} isQuestion={true} />}
                   </div>
                 );
               })}
             </div>
 
-            {/* Хариултын багана */}
             <div className="flex-1">
               <h3 className="border-b pb-2.5 mb-2 font-medium text-gray-700">
-                2дох багана
+                Хариултын багана
               </h3>
               {answersOnly.map((a) => {
-                const aid = `answer-${a.refid}`;
+                const aid = `a-${a.answer_id}`;
                 return (
                   <div
                     key={aid}
@@ -410,7 +397,6 @@ export default function MatchingByLine({
           </div>
         )}
 
-        {/* Холболтын шугамууд (Зөвхөн Desktop) */}
         {!isMobile &&
           connections.map((conn, i) =>
             conn.end ? (

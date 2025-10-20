@@ -1,8 +1,7 @@
-// app/(main)/sorillist/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React, { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Filter, X, Calendar, CheckCircle2 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { getSorillists } from "@/lib/api";
@@ -22,15 +21,13 @@ export default function ExamListPage() {
   const [category, setCategory] = useState<ExamCategory>("all");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  const mutation = useMutation<ApiSorillistsResponse, Error, { id: number }>({
-    mutationFn: ({ id }) => getSorillists(id),
+  const { data: queryData, isPending } = useQuery<ApiSorillistsResponse>({
+    queryKey: ["sorillists", userId],
+    queryFn: () => getSorillists(userId!),
+    enabled: !!userId,
   });
 
-  useEffect(() => {
-    if (userId) mutation.mutate({ id: userId });
-  }, [userId]);
-
-  const data: ExamData[] = mutation.data?.RetData || [];
+  const data: ExamData[] = queryData?.RetData || [];
   const now = new Date();
 
   const categorized = useMemo(() => {
@@ -59,7 +56,7 @@ export default function ExamListPage() {
         <header className="mb-6 sm:mb-8 lg:mb-10">
           <div className="text-center space-y-2 sm:space-y-3">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
-              Шалгалтын жагсаалт
+              Сорилын жагсаалт
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
               Сорилуудыг жагсааж, эхлүүлэх товчийг дарна уу
@@ -98,7 +95,7 @@ export default function ExamListPage() {
                     ? "border-blue-500 dark:border-blue-600"
                     : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700"
                 )}
-                placeholder="Шалгалтын нэрээр хайх..."
+                placeholder="Сорил нэрээр хайх..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
@@ -169,7 +166,7 @@ export default function ExamListPage() {
 
         {/* Exam Grid */}
         <div className="grid gap-4 sm:gap-5 lg:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {mutation.isPending ? (
+          {isPending ? (
             Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Filter,
@@ -9,19 +9,20 @@ import {
   Zap,
   DollarSign,
   CheckCircle2,
-  Clock,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { getExamlists } from "@/lib/api";
+import { ApiExamlistsResponse, ExamData } from "@/types/examlists";
 import { useRouter } from "next/navigation";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import ExamCard from "./examcard";
 import { cn } from "@/lib/utils";
 
-type ExamCategory = "all" | "active" | "paid" | "expired";
+type ExamCategory = "all" | "active" | "free" | "paid" | "expired";
 
 export default function ExamListPage() {
   const userId = useAuthStore((s) => s.userId);
@@ -32,28 +33,32 @@ export default function ExamListPage() {
   const [selectedCategory, setSelectedCategory] = useState<ExamCategory>("all");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  const mutation = useMutation({
-    mutationFn: ({ id }: { id: number }) => getExamlists(id),
+  const { data: queryData, isPending } = useQuery<ApiExamlistsResponse>({
+    queryKey: ["examlists", userId],
+    queryFn: () => getExamlists(userId!),
+    enabled: !!userId,
   });
 
-  useEffect(() => {
-    if (userId) mutation.mutate({ id: userId });
-  }, [userId]);
-
-  const data = mutation.data?.RetData || [];
+  const data: ExamData[] = queryData?.RetData || [];
 
   // Category-д ангилах
   const categorizedData = useMemo(() => {
     return {
-      active: data.filter((exam) => {
+      active: data.filter((exam: ExamData) => {
         const startTime = new Date(exam.ognoo);
         const endTime = new Date(
           startTime.getTime() + exam.exam_minute * 60000
         );
-        return now >= startTime && now <= endTime;
+        const isPurchased = exam.ispurchased === 1;
+        const isFree = exam.ispaydescr === "Төлбөргүй";
+        return now >= startTime && now <= endTime && (isFree || isPurchased);
       }),
-      paid: data.filter((exam) => exam.amount > 0 && exam.ispurchased === 0),
-      expired: data.filter((exam) => {
+      free: data.filter((exam: ExamData) => exam.ispaydescr === "Төлбөргүй"),
+      paid: data.filter(
+        (exam: ExamData) =>
+          exam.ispaydescr === "Төлбөртэй" && exam.ispurchased === 0
+      ),
+      expired: data.filter((exam: ExamData) => {
         const startTime = new Date(exam.ognoo);
         const endTime = new Date(
           startTime.getTime() + exam.exam_minute * 60000
@@ -65,13 +70,13 @@ export default function ExamListPage() {
 
   // Search + Category filter
   const filteredData = useMemo(() => {
-    let exams: typeof data = [];
+    let exams: ExamData[] = [];
     if (selectedCategory === "all") exams = data;
     else exams = categorizedData[selectedCategory];
 
     if (!searchTerm.trim()) return exams;
 
-    return exams.filter((exam) =>
+    return exams.filter((exam: ExamData) =>
       exam.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [data, categorizedData, searchTerm, selectedCategory]);
@@ -181,6 +186,14 @@ export default function ExamListPage() {
                 icon={<Zap size={14} />}
               />
               <CategoryBadge
+                active={selectedCategory === "free"}
+                onClick={() => setSelectedCategory("free")}
+                count={categorizedData.free.length}
+                label="Төлбөргүй"
+                variant="free"
+                icon={<Sparkles size={14} />}
+              />
+              <CategoryBadge
                 active={selectedCategory === "paid"}
                 onClick={() => setSelectedCategory("paid")}
                 count={categorizedData.paid.length}
@@ -204,7 +217,7 @@ export default function ExamListPage() {
 
         {/* Exam Grid */}
         <div className="grid gap-4 sm:gap-5 lg:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {mutation.isPending ? (
+          {isPending ? (
             Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
@@ -258,7 +271,7 @@ export default function ExamListPage() {
               </div>
             </Card>
           ) : (
-            filteredData.map((exam) => (
+            filteredData.map((exam: ExamData) => (
               <ExamCard key={exam.exam_id} exam={exam} now={now} />
             ))
           )}
@@ -274,7 +287,7 @@ interface CategoryBadgeProps {
   onClick: () => void;
   count: number;
   label: string;
-  variant: "all" | "active" | "paid" | "expired";
+  variant: "all" | "active" | "free" | "paid" | "expired";
   icon?: React.ReactNode;
 }
 
@@ -296,6 +309,8 @@ const CategoryBadge: React.FC<CategoryBadgeProps> = ({
         return "bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-2 border-blue-500 shadow-lg shadow-blue-500/30";
       case "active":
         return "bg-gradient-to-r from-emerald-500 to-green-600 text-white border-2 border-emerald-500 shadow-lg shadow-emerald-500/30";
+      case "free":
+        return "bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-2 border-cyan-500 shadow-lg shadow-cyan-500/30";
       case "paid":
         return "bg-gradient-to-r from-red-500 to-rose-600 text-white border-2 border-red-500 shadow-lg shadow-red-500/30";
       case "expired":

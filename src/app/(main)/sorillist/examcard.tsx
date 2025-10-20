@@ -126,15 +126,26 @@ export default function ExamCard({ exam }: ExamCardProps) {
               Хэдэн асуултанд хариулах вэ?
             </label>
             <Input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder={`${exam.que_cnt}`}
               value={questionCount}
-              min={1}
-              max={exam.que_cnt}
               onChange={(e) => {
-                const val = e.target.value === "" ? "" : Number(e.target.value);
-                if (val === "" || (val >= 1 && val <= exam.que_cnt)) {
-                  setQuestionCount(val);
+                const val = e.target.value;
+
+                // зөвхөн эерэг бүхэл тоо шалгах regex
+                if (/^\d*$/.test(val)) {
+                  const num = Number(val);
+                  if (val === "" || (num >= 1 && num <= exam.que_cnt)) {
+                    setQuestionCount(val === "" ? "" : num);
+                  }
+                }
+              }}
+              onKeyDown={(e) => {
+                // -, e, +, . зэрэг тэмдэг оруулахаас сэргийлнэ
+                if (["e", "E", "+", "-", "."].includes(e.key)) {
+                  e.preventDefault();
                 }
               }}
               className="mt-1 border-gray-300 dark:border-gray-700"
