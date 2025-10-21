@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "skuul.mn",
         port: "",
-        pathname: "/**", // 👈 бүх зурагт зөвшөөрөл олгоно
+        pathname: "/**", 
       },
     ],
   },

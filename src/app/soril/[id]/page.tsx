@@ -1,10 +1,10 @@
-// app/soril/[id]/page.tsx - Fixed useQuery for Tanstack Query v5
+// app/soril/[id]/page.tsx - Auto-save with POST request
 
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import SingleSelectQuestion from "@/components/question/sinleselect";
 import MultiSelectQuestion from "@/components/question/multiselect";
 import FillInTheBlankQuestionShadcn from "@/components/question/fillinblank";
@@ -12,18 +12,10 @@ import DragAndDropWrapper from "@/components/question/DragAndDropWrapper";
 import MatchingByLineWrapper from "@/components/question/matching";
 import MiniMap from "@/app/exam/minimap";
 import ITimer from "@/app/exam/itimer";
-import { Flag, Save } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { getExamById, saveAnswer } from "@/lib/api";
+import { Flag } from "lucide-react";
+import { getExamById } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import type {
-  ApiExamResponse,
-  Question,
-  Answer,
-  ExamInfo,
-  SaveAnswerRequest,
-} from "@/types/exam";
+import type { ApiExamResponse, Question, Answer } from "@/types/exam";
 
 type SelectedAnswersType = {
   [key: number]: number | number[] | string | Record<string, string> | null;
@@ -39,7 +31,7 @@ export default function ExamPage() {
     {}
   );
   const [bookmarks, setBookmarks] = useState<number[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
+
   const { data: examData } = useQuery<ApiExamResponse>({
     queryKey: ["exam", userId, id],
     queryFn: () => getExamById(userId!, Number(id)),
@@ -58,37 +50,17 @@ export default function ExamPage() {
     }
   }, [examData]);
 
-  // Extract data from query result
   const questions = useMemo(() => examData?.Questions || [], [examData]);
   const answers = useMemo(() => examData?.Answers || [], [examData]);
   const examInfo = useMemo(() => examData?.ExamInfo || [], [examData]);
 
-  // Асуултыг тоогоор хязгаарлах
   const displayQuestions = useMemo(() => {
     if (!requestedCount) return questions;
-
     const count = parseInt(requestedCount);
     if (isNaN(count) || count <= 0) return questions;
-
     return questions.slice(0, count);
   }, [questions, requestedCount]);
 
-  // Save answer mutation
-  const saveMutation = useMutation<any, Error, SaveAnswerRequest>({
-    mutationFn: saveAnswer,
-    onSuccess: () => {
-      toast.success("Хариулт хадгалагдлаа", {
-        duration: 1000,
-        position: "bottom-right",
-      });
-    },
-    onError: (error) => {
-      console.error("Save answer error:", error);
-      toast.error("Хариулт хадгалахад алдаа гарлаа");
-    },
-  });
-
-  // Memoized answers lookup
   const answersByQuestion = useMemo(() => {
     const map = new Map<number, Answer[]>();
     answers.forEach((answer) => {
@@ -103,7 +75,6 @@ export default function ExamPage() {
     return map;
   }, [answers]);
 
-  // Memoized matching data
   const matchingData = useMemo(() => {
     const questions = answers.filter(
       (q): q is Answer & { refid: number; question_id: number } =>
@@ -126,37 +97,99 @@ export default function ExamPage() {
     [answersByQuestion]
   );
 
-  // Save answer to server
-  const saveAnswerToServer = useCallback(
-    (
+  // Save answer to API with POST request
+  const saveAnswerToAPI = useCallback(
+    async (
       questionId: number,
-      answerValue: number | number[] | string | Record<string, string> | null,
+      answerId: number | number[] | string | Record<string, string> | null,
       queTypeId: number
     ) => {
       if (!userId || !id) return;
 
-      saveMutation.mutate({
-        userId,
-        examId: Number(id),
-        questionId,
-        queTypeId,
-        answerValue,
-      });
+      try {
+        let answerIdValue: number | string = 0;
+        let answerText = "";
+
+        // Handle different answer types
+        if (queTypeId === 1) {
+          // Single select
+          answerIdValue = (answerId as number) || 0;
+        } else if (queTypeId === 2 || queTypeId === 3) {
+          // Multi select - use first selected or 0
+          answerIdValue =
+            Array.isArray(answerId) && answerId.length > 0 ? answerId[0] : 0;
+        } else if (queTypeId === 4) {
+          // Fill in the blank
+          answerText = typeof answerId === "string" ? answerId : "";
+          answerIdValue = 0;
+        } else if (queTypeId === 5 || queTypeId === 6) {
+          // Drag and drop or Matching
+          answerText = JSON.stringify(answerId);
+          answerIdValue = 0;
+        }
+
+        const payload = {
+          que_type_id: queTypeId,
+          question_id: questionId,
+          answer_id: answerIdValue,
+          answer: answerText,
+          row_num: 1,
+          exam_id: Number(id),
+          user_id: Number(userId),
+          conn: {
+            user: "edusr",
+            password: "sql$erver43",
+            database: "ikh_skuul",
+            server: "172.16.1.79",
+            pool: {
+              max: 100000,
+              min: 0,
+              idleTimeoutMillis: 30000000,
+            },
+            options: {
+              encrypt: false,
+              trustServerCertificate: false,
+            },
+          },
+        };
+
+        const response = await fetch(
+          "https://ottapp.ecm.mn/api/examchoosedanswer",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        if (!response.ok) {
+          console.error("Failed to save answer:", response.statusText);
+        } else {
+          console.log("Answer saved successfully for question:", questionId);
+        }
+      } catch (error) {
+        console.error("Error saving answer:", {
+          questionId,
+          queTypeId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     },
-    [userId, id, saveMutation]
+    [userId, id]
   );
 
-  // Answer change handlers with auto-save
   const handleSingleAnswerChange = useCallback(
     (qid: number, answerId: number | null) => {
       setSelectedAnswers((prev) => ({ ...prev, [qid]: answerId }));
 
       const question = questions.find((q) => q.question_id === qid);
-      if (question) {
-        saveAnswerToServer(qid, answerId, question.que_type_id);
+      if (question && answerId !== null) {
+        saveAnswerToAPI(qid, answerId, question.que_type_id);
       }
     },
-    [questions, saveAnswerToServer]
+    [questions, saveAnswerToAPI]
   );
 
   const handleMultiAnswerChange = useCallback(
@@ -165,10 +198,10 @@ export default function ExamPage() {
 
       const question = questions.find((q) => q.question_id === qid);
       if (question) {
-        saveAnswerToServer(qid, answerIds, question.que_type_id);
+        saveAnswerToAPI(qid, answerIds, question.que_type_id);
       }
     },
-    [questions, saveAnswerToServer]
+    [questions, saveAnswerToAPI]
   );
 
   const handleFillInTheBlankChange = useCallback(
@@ -177,10 +210,10 @@ export default function ExamPage() {
 
       const question = questions.find((q) => q.question_id === qid);
       if (question) {
-        saveAnswerToServer(qid, answerText, question.que_type_id);
+        saveAnswerToAPI(qid, answerText, question.que_type_id);
       }
     },
-    [questions, saveAnswerToServer]
+    [questions, saveAnswerToAPI]
   );
 
   const handleDragDropChange = useCallback(
@@ -189,43 +222,11 @@ export default function ExamPage() {
 
       const question = questions.find((q) => q.question_id === qid);
       if (question) {
-        saveAnswerToServer(qid, orderedIds, question.que_type_id);
+        saveAnswerToAPI(qid, orderedIds, question.que_type_id);
       }
     },
-    [questions, saveAnswerToServer]
+    [questions, saveAnswerToAPI]
   );
-
-  // Manual save all answers
-  const handleSaveAllAnswers = useCallback(async () => {
-    setIsSaving(true);
-    try {
-      const savePromises = Object.entries(selectedAnswers).map(
-        ([qid, answer]) => {
-          const question = questions.find(
-            (q) => q.question_id === parseInt(qid)
-          );
-          if (question && userId && id) {
-            return saveAnswer({
-              userId,
-              examId: Number(id),
-              questionId: parseInt(qid),
-              queTypeId: question.que_type_id,
-              answerValue: answer,
-            });
-          }
-          return Promise.resolve();
-        }
-      );
-
-      await Promise.all(savePromises);
-      toast.success("Бүх хариулт амжилттай хадгалагдлаа");
-    } catch (error) {
-      console.error("Save all answers error:", error);
-      toast.error("Хариулт хадгалахад алдаа гарлаа");
-    } finally {
-      setIsSaving(false);
-    }
-  }, [selectedAnswers, questions, userId, id]);
 
   const handleJumpToQuestion = useCallback((qid: number) => {
     document
@@ -246,13 +247,17 @@ export default function ExamPage() {
     const actualQuestionCount = displayQuestions.length;
 
     return (
-      <div className="mb-6 p-4 rounded border border-border">
-        <div className="flex justify-between items-start">
+      <div className="mb-4 sm:mb-6 p-3 sm:p-4 rounded border border-border">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold mb-2">{info.title}</h1>
-            {info.descr && <p className="mb-2">{info.descr}</p>}
-            {info.help && <p className="text-sm mb-2">{info.help}</p>}
-            <div className="flex flex-wrap gap-4 text-sm">
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">{info.title}</h1>
+            {info.descr && (
+              <p className="mb-2 text-sm sm:text-base">{info.descr}</p>
+            )}
+            {info.help && (
+              <p className="text-xs sm:text-sm mb-2">{info.help}</p>
+            )}
+            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
               <div>Хугацаа: {info.minut} минут</div>
               <div>
                 Асуулт тоо:{" "}
@@ -264,25 +269,20 @@ export default function ExamPage() {
                 )}
               </div>
               <div>Төрөл: {info.exam_type_name}</div>
-              <div>Эхлэх цаг: {new Date(info.end_time).toLocaleString()}</div>
+              <div className="hidden sm:block">
+                Эхлэх цаг: {new Date(info.end_time).toLocaleString()}
+              </div>
             </div>
           </div>
-          <Button
-            onClick={handleSaveAllAnswers}
-            disabled={isSaving}
-            className="bg-indigo-500 hover:bg-indigo-600"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? "Хадгалж байна..." : "Бүгдийг хадгалах"}
-          </Button>
         </div>
       </div>
     );
-  }, [examInfo, displayQuestions.length, isSaving, handleSaveAllAnswers]);
+  }, [examInfo, displayQuestions.length]);
 
   return (
-    <div className="flex gap-4 p-4 ">
-      <div className="w-1/6 h-fit sticky top-4 self-start">
+    <div className="flex flex-col lg:flex-row gap-4 p-2 sm:p-4">
+      {/* MiniMap - Desktop only */}
+      <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
         <MiniMap
           questions={displayQuestions}
           choosedAnswers={selectedAnswers as Record<number, number>}
@@ -291,7 +291,8 @@ export default function ExamPage() {
         />
       </div>
 
-      <div className="w-4/6 space-y-6">
+      {/* Main Content */}
+      <div className="w-full lg:w-4/6 space-y-4 sm:space-y-6">
         {examInfoDisplay}
 
         {displayQuestions.map((question) => (
@@ -311,7 +312,8 @@ export default function ExamPage() {
         ))}
       </div>
 
-      <div className="w-1/6 h-fit sticky top-4 self-start">
+      {/* Timer - Desktop only */}
+      <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
         {examInfo.length > 0 && (
           <ITimer
             durationMinutes={examInfo[0].minut}
@@ -320,6 +322,17 @@ export default function ExamPage() {
           />
         )}
       </div>
+
+      {/* Mobile Timer - Fixed at bottom */}
+      {examInfo.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 shadow-lg z-50">
+          <ITimer
+            durationMinutes={examInfo[0].minut}
+            examName={examInfo[0].title}
+            startTime={new Date()}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -355,9 +368,9 @@ const QuestionItem = React.memo(
     return (
       <div
         id={`question-container-${question.question_id}`}
-        className="mb-6 p-4 border rounded shadow-sm"
+        className="mb-4 sm:mb-6 p-3 sm:p-4 border rounded shadow-sm"
       >
-        <h2 className="flex justify-between items-start font-semibold mb-2">
+        <h2 className="flex justify-between items-start font-semibold mb-2 text-sm sm:text-base">
           <div className="flex-1 min-w-0 pr-2">
             <div dangerouslySetInnerHTML={{ __html: question.question_name }} />
           </div>

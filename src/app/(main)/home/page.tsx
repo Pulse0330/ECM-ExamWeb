@@ -181,14 +181,7 @@ export default function Home() {
           backgroundClass,
           "font-inter max-h-screen transition-colors duration-500"
         )}
-      >
-        <main className="flex justify-center items-center py-16 max-h-screen">
-          <div className="max-w-4xl w-full text-center p-8 bg-red-600/10 border border-red-400 text-red-700 dark:bg-red-800/20 dark:border-red-600 dark:text-red-400 rounded-xl shadow-md">
-            <p className="font-bold text-xl mb-2">😭 Ачааллын алдаа</p>
-            <p>{(error as Error)?.message || "Өгөгдөл олдсонгүй."}</p>
-          </div>
-        </main>
-      </div>
+      ></div>
     );
   }
 
@@ -236,18 +229,9 @@ export default function Home() {
       <main>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 dashboard-content">
           <header
-            className="flex justify-between items-center pb-4"
+            className="flex justify-between items-center"
             style={getAnimationStyles(0)}
-          >
-            <div>
-              <p className="text-xl font-medium text-gray-500 dark:text-gray-400">
-                Сайн байна уу,
-              </p>
-              <h1 className="text-5xl font-extrabold tracking-tight flex items-center mt-1 text-gray-900 dark:text-white">
-                Оюутан!
-              </h1>
-            </div>
-          </header>
+          ></header>
 
           {suggestedExam && (
             <MagicHeroCard delay={100}>

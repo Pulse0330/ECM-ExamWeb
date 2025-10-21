@@ -1,4 +1,4 @@
-export interface SorillistsResponseTye {
+export interface SorillistsResponseType {
   ResponseMessage: string;
   StatusCode: string;
   ResponseCode: string;
@@ -22,7 +22,7 @@ export interface ExamData {
 // /types.ts
 
 
-export interface ApiResponse {
-  RetResponse: SorillistsResponseTye;
+export interface ApiSorillistsResponse {
+  RetResponse: SorillistsResponseType;
   RetData: ExamData[];
 }

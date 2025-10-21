@@ -5,7 +5,11 @@ import {HomeResponseType} from "@/types/home";
 import { ApiExamlistsResponse } from "@/types/examlists";
 import { ApiSorillistsResponse } from "@/types/sorillists";
 import {UserProfileResponseType} from "@/types/userProfile";
-import { ApiExamResponse, SaveAnswerRequest, SaveAnswerResponse } from "@/types/exam";
+import {  ExamFinishResponse } from "@/types/examfinish";
+import { ApiExamResponse} from "@/types/exam";
+import { ExamAnswerResponse } from "@/types/examChoosedAnswer";
+
+
 export const loginRequest = async (
   username: string,
   password: string
@@ -78,44 +82,42 @@ export const getExamById = async (userId: number, examId: number): Promise<ApiEx
   return data;
 };
 // ===== " ExamSave request =====
-export const saveAnswer = async (
-  request: SaveAnswerRequest
-): Promise<SaveAnswerResponse> => {
-  let answerId: number | null = null;
-  let answerText = "";
 
-  // Determine answer_id and answer based on type
-  if (typeof request.answerValue === "number") {
-    answerId = request.answerValue;
-  } else if (typeof request.answerValue === "string") {
-    answerText = request.answerValue;
-  } else if (Array.isArray(request.answerValue)) {
-    // For multiple choice questions - store all selected answers
-    answerId = request.answerValue.length > 0 ? request.answerValue[0] : null;
-    answerText = JSON.stringify(request.answerValue);
-  } else if (request.answerValue && typeof request.answerValue === "object") {
-    // For matching or complex answer types
-    answerText = JSON.stringify(request.answerValue);
-  }
-
-  const payload = {
-    que_type_id: request.queTypeId,
-    question_id: request.questionId,
+export const saveExamAnswer = async (
+  userId: number,
+  examId: number,
+  questionId: number,
+  answerId: number,
+  queTypeId: number,
+  answer: string = "",
+  rowNum: number = 1
+): Promise<ExamAnswerResponse> => {
+  const { data } = await api.post<ExamAnswerResponse>("/examchoosedanswer", {
+    que_type_id: queTypeId,
+    question_id: questionId,
     answer_id: answerId,
-    answer: answerText,
-    row_num: 1, // Default to 1, can be made dynamic if needed
-    exam_id: request.examId,
-    user_id: request.userId,
-    // conn will be added automatically by axios interceptor
-  };
-
-  const { data } = await api.post<SaveAnswerResponse>(
-    "/examchoosedanswer",
-    payload
-  );
+    answer: answer,
+    row_num: rowNum,
+    exam_id: examId,
+    user_id: userId,
+  });
   return data;
 };
 
-
-
-
+// ===== " ExamFinish request =====
+export const finishExam = async (
+  userId: number,
+  examId: number,
+  examType: number,
+  startEid: number,
+  examTime: number
+): Promise<ExamFinishResponse> => {
+  const { data } = await api.post<ExamFinishResponse>("/examfinish", {
+    user_id: userId,
+    exam_id: examId,
+    exam_type: examType,
+    start_eid: startEid,
+    exam_time: examTime,
+  });
+  return data;
+};

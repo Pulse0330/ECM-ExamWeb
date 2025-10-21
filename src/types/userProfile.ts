@@ -1,6 +1,6 @@
 // types/auth.ts
 
-export interface ApiResponse {
+export interface UserProfileResponseType {
   RetResponse: RetResponse;
   RetData: UserData[];
 }

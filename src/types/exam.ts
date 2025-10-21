@@ -68,7 +68,7 @@ export interface ApiExamResponse {
   Answers: Answer[];
   ChoosedAnswer: ChoosedAnswer[];
   ChoosedFiles: any[];
-  RetData: RetDataItem[];  // ✅ Array of objects, not single object
+  RetData: RetDataItem[];  
 }
 
 export interface SaveAnswerRequest {

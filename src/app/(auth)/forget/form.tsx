@@ -3,93 +3,129 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import {toast} from "sonner";
-import { useMutation } from "@tanstack/react-query";
-import { loginRequest } from "@/lib/axios";
-import { useAuthStore } from "@/stores/authStore";
-import { LoginPayload, LoginType } from "@/types/login";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-interface LoginFormData {
-  username: string;
-  password: string;
+interface ForgetPasswordFormData {
+  email: string;
 }
 
-export default function LoginForm() {
+export default function ForgetPasswordPage() {
   const router = useRouter();
-  const setUserId = useAuthStore((state) => state.setUserId);
-  const [view, setView] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgetPasswordFormData>();
 
-  const mutation = useMutation<LoginType, any, LoginPayload>({
-    mutationFn: ({ username, password }) => loginRequest(username, password),
-    onSuccess: (res) => {
-      if (res.RetResponse.ResponseType) {
-        setUserId(res.RetData.toString());
-        toast.success("Амжилттай нэвтэрлээ");
-        router.push("/home");
-      } else {
-        toast.error(res.RetResponse.ResponseMessage);
-      }
-    },
-    onError: () => {
-      toast.error("Алдаа гарлаа, дахин оролдоно уу");
-    },
-  });
+  const onSubmit = async (data: ForgetPasswordFormData) => {
+    setIsSubmitting(true);
+    try {
+      console.log("Reset password for:", data.email);
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-  const onSubmit = (data: LoginFormData) => mutation.mutate(data);
+      toast.success("Нууц үг сэргээх холбоос имэйлээр илгээгдлээ!");
+      setTimeout(() => router.push("/login"), 1000);
+    } catch (err) {
+      console.error(err);
+      toast.error("Алдаа гарлаа. Дахин оролдоно уу.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="w-full max-w-md p-6 bg-white rounded-xl shadow-lg dark:bg-gray-800"
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-6 py-12">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
       >
-        <h2 className="text-xl font-bold mb-4">Тавтай морилно уу</h2>
+        <Card className="border-0 bg-transparent shadow-none rounded-3xl">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col">
+            <CardHeader className="text-center pb-4 pt-6">
+              <CardTitle className="text-3xl font-bold text-gray-900 dark:text-white">
+                Нууц үг сэргээх
+              </CardTitle>
+              <CardDescription className="text-base text-gray-500 dark:text-gray-400 mt-2">
+                Нууц үгээ мартсан бол имэйлээ оруулж сэргээх холбоос авах
+              </CardDescription>
+            </CardHeader>
 
-        {/* Username */}
-        <div className="mb-4">
-          <label htmlFor="username" className="block mb-1">Нэвтрэх нэр</label>
-          <input
-            id="username"
-            type="text"
-            className="w-full px-3 py-2 border rounded"
-            {...register("username", { required: "Нэвтрэх нэр оруулна уу" })}
-          />
-          {errors.username && (
-            <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>
-          )}
-        </div>
+            <CardContent className="space-y-4 px-8">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Имэйл
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@example.com"
+                  {...register("email", {
+                    required: "Имэйл оруулна уу",
+                    pattern: {
+                      value:
+                        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
+                      message: "Хүчинтэй имэйл хаяг оруулна уу",
+                    },
+                  })}
+                  disabled={isSubmitting}
+                />
+                {errors.email && (
+                  <p className="text-sm text-red-500 mt-1">
+                    ⚠️ {errors.email.message}
+                  </p>
+                )}
+              </div>
+            </CardContent>
 
-        {/* Password */}
-        <div className="mb-4 relative">
-          <label htmlFor="password" className="block mb-1">Нууц үг</label>
-          <input
-            id="password"
-            type={view ? "text" : "password"}
-            className="w-full px-3 py-2 border rounded pr-10"
-            {...register("password", { required: "Нууц үг оруулна уу" })}
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2"
-            onClick={() => setView(!view)}
-          >
-            {view ? "🙈" : "👁️"}
-          </button>
-          {errors.password && (
-            <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-          )}
-        </div>
+            <CardFooter className="flex flex-col gap-4 px-8 pb-8 pt-2">
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Түр хүлээнэ үү...
+                  </span>
+                ) : (
+                  "Сэргээх холбоос илгээх"
+                )}
+              </Button>
 
-        <button
-          type="submit"
-          className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded"
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending ? "Нэвтрүүлж байна..." : "Нэвтрэх"}
-        </button>
-      </form>
+              <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+                Нууц үг санасан уу?{" "}
+                <button
+                  onClick={() => router.push("/login")}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold transition-all duration-300 hover:underline underline-offset-4"
+                >
+                  Нэвтрэх
+                </button>
+              </div>
+            </CardFooter>
+          </form>
+        </Card>
+      </motion.div>
     </div>
   );
 }

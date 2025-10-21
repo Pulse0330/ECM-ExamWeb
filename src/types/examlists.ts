@@ -1,4 +1,4 @@
-export interface ExamlistsResoonseTye {
+export interface ExamlistsResponseTye {
   ResponseMessage: string;
   StatusCode: string;
   ResponseCode: string;
@@ -25,8 +25,10 @@ export interface ExamData {
   plan_id: number | null;
   plan_name: string | null;
 }
+// /types.ts
 
-export interface ApiResponse {
-  RetResponse: RetResponse;
+
+export interface ApiExamlistsResponse {
+  RetResponse: ExamlistsResponseTye;
   RetData: ExamData[];
 }

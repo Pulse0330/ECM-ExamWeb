@@ -3,7 +3,7 @@ export type LoginPayload = {
   password: string;
 };
 
-export interface LoginType {
+export interface LoginResponseType {
   RetResponse: {
     ResponseMessage: string;
     StatusCode: string;

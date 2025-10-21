@@ -270,7 +270,7 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
         {/* Action Button */}
         <button
           onClick={(e) => {
-            e.stopPropagation(); // Карт дээрх onClick-тэй давхцахгүй
+            e.stopPropagation();
             handleAction();
           }}
           disabled={isLocked}

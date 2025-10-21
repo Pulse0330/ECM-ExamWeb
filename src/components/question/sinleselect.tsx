@@ -39,8 +39,8 @@ function SingleSelectQuestion({
   );
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="space-y-2 sm:space-y-3">
         {answers.map((option) => {
           const isSelected = selectedAnswer === option.answer_id;
 
@@ -50,15 +50,16 @@ function SingleSelectQuestion({
               onClick={() => handleSelect(option.answer_id)}
               variant="outline"
               disabled={isReviewMode}
-              // Button-ы үндсэн стилийг тохируулав. (text-left-ийг устгасан, учир нь flex-ийн justify-start ашиглаж байна)
-              className={`flex items-center gap-3 w-full justify-start p-3 border rounded-md transition-colors h-auto
+              className={`flex items-start gap-2 sm:gap-3 w-full justify-start p-2 sm:p-3 border rounded-md transition-colors h-auto min-h-[44px]
                 ${isSelected ? "border-primary bg-primary/10" : "border-border"}
-                ${isReviewMode ? "cursor-default opacity-70" : ""}
+                ${
+                  isReviewMode ? "cursor-default opacity-70" : "hover:bg-accent"
+                }
               `}
             >
               {/* Radio дугуй */}
               <span
-                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0
+                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5
                   ${
                     isSelected
                       ? "border-primary bg-primary"
@@ -67,29 +68,32 @@ function SingleSelectQuestion({
                 `}
               >
                 {isSelected && (
-                  <span className="w-2 h-2 bg-primary-foreground rounded-full" />
+                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-primary-foreground rounded-full" />
                 )}
               </span>
 
-              {/* Зурагт зориулсан шинэ блок */}
+              {/* Зурагт зориулсан блок */}
               {option.answer_img && (
-                <div className="flex-shrink-0 size-20 border rounded-md overflow-hidden bg-white">
+                <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 border rounded-md overflow-hidden bg-white">
                   <Image
                     src={option.answer_img}
                     alt={`Answer ${option.answer_id}`}
-                    width={60}
-                    height={60}
-                    // Зургийг доторх хайрцагт тааруулахын тулд object-cover ашиглаж, хэмжээг нь тогтоов.
+                    width={80}
+                    height={80}
                     className="w-full h-full object-cover"
                   />
                 </div>
               )}
 
-              {/* Сонголтын текст - текст урт бол олон мөрөөр харуулахын тулд flex-grow-г нэмэв */}
+              {/* Сонголтын текст - word-wrap болон overflow fix */}
               <span
-                className="flex-grow min-w-0" // Текстийг олон мөрөнд хуваахын тулд нэмсэн.
+                className="flex-1 min-w-0 text-left text-sm sm:text-base break-words overflow-wrap-anywhere leading-relaxed"
                 dangerouslySetInnerHTML={{
                   __html: option.answer_name_html || "",
+                }}
+                style={{
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
                 }}
               />
             </Button>
