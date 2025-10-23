@@ -18,7 +18,7 @@ interface Answer {
 
 type Props = {
   answers: Answer[];
-  droppableId?: string; // олон list-ийг ялгахын тулд
+  droppableId?: string;
   onOrderChange?: (orderedIds: number[]) => void;
 };
 
@@ -29,7 +29,6 @@ export default function DragAndDrop({
 }: Props) {
   const [items, setItems] = useState<Answer[]>(answers || []);
 
-  // Гаднаас answers өөрчлөгдөхөд state-ийг шинэчлэх
   useEffect(() => {
     setItems(answers || []);
   }, [answers]);
@@ -43,16 +42,12 @@ export default function DragAndDrop({
 
     setItems(newItems);
 
-    // Шинэ дарааллыг parent руу явуулах
+    // 📤 Шинэ дарааллыг буцаах
     onOrderChange?.(newItems.map((i) => i.answer_id));
   };
 
   return (
     <div>
-      <div style={{ marginBottom: 10 }}>
-        <span>Зөв дараалалд оруулна уу</span>
-      </div>
-
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId={droppableId}>
           {(provided) => (
@@ -76,8 +71,6 @@ export default function DragAndDrop({
                       )}
                       style={{ ...providedDraggable.draggableProps.style }}
                     >
-                      {/* item.answer_name_html нь HTML string байж магад тул анхаар */}
-                      {/* Хэрэв HTML гэж байгаа бол dangerouslySetInnerHTML ашиглаж болно, эсвэл энгийн text */}
                       <div
                         dangerouslySetInnerHTML={{
                           __html: item.answer_name_html,

@@ -6,7 +6,7 @@ import { ApiExamlistsResponse } from "@/types/examlists";
 import { ApiSorillistsResponse } from "@/types/sorillists";
 import {UserProfileResponseType} from "@/types/userProfile";
 import {  ExamFinishResponse } from "@/types/examfinish";
-import { ApiExamResponse} from "@/types/exam";
+import { ApiExamResponse ,ExamInfo} from "@/types/exam";
 import { ExamAnswerResponse } from "@/types/examChoosedAnswer";
 
 
@@ -81,6 +81,24 @@ export const getExamById = async (userId: number, examId: number): Promise<ApiEx
   });
   return data;
 };
+
+
+// ===== " ExamFinish request =====
+
+export const finishExam = async (
+  userId: number,
+   examInfo: ExamInfo, 
+): Promise<ExamFinishResponse> => {
+  const { data } = await api.post<ExamFinishResponse>("/examfinish", {
+    exam_id: examInfo.id,
+    exam_type: examInfo.exam_type,
+    start_eid: examInfo.start_eid,
+    exam_time: examInfo.minut,
+    user_id: userId,
+  
+  });
+  return data;
+};
 // ===== " ExamSave request =====
 
 export const saveExamAnswer = async (
@@ -104,20 +122,26 @@ export const saveExamAnswer = async (
   return data;
 };
 
-// ===== " ExamFinish request =====
-export const finishExam = async (
-  userId: number,
+// =====  Get Exam Results =====
+export const getExamResults = async (
+  testId: number
+): Promise<any> => {
+  const { data } = await api.post("/getexamresults", {
+    test_id: testId,
+  });
+  return data;
+};
+
+// =====  (detailed results) =====
+export const getExamResultMore = async (
+  testId: number,
   examId: number,
-  examType: number,
-  startEid: number,
-  examTime: number
-): Promise<ExamFinishResponse> => {
-  const { data } = await api.post<ExamFinishResponse>("/examfinish", {
-    user_id: userId,
+  userId: number
+): Promise<any> => {
+  const { data } = await api.post("/resexammore", {
+    test_id: testId,
     exam_id: examId,
-    exam_type: examType,
-    start_eid: startEid,
-    exam_time: examTime,
+    user_id: userId,
   });
   return data;
 };

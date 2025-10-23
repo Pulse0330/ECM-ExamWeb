@@ -1,4 +1,4 @@
-// app/soril/[id]/page.tsx - Auto-save with POST request
+// app/soril/[id]/page.tsx - Only Submit Button changed
 
 "use client";
 
@@ -12,8 +12,9 @@ import DragAndDropWrapper from "@/components/question/DragAndDropWrapper";
 import MatchingByLineWrapper from "@/components/question/matching";
 import MiniMap from "@/app/exam/minimap";
 import ITimer from "@/app/exam/itimer";
+import SubmitExamButtonWithDialog from "@/components/question/Submit";
 import { Flag } from "lucide-react";
-import { getExamById } from "@/lib/api";
+import { getExamById, saveExamAnswer } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import type { ApiExamResponse, Question, Answer } from "@/types/exam";
 
@@ -97,7 +98,6 @@ export default function ExamPage() {
     [answersByQuestion]
   );
 
-  // Save answer to API with POST request
   const saveAnswerToAPI = useCallback(
     async (
       questionId: number,
@@ -107,70 +107,35 @@ export default function ExamPage() {
       if (!userId || !id) return;
 
       try {
-        let answerIdValue: number | string = 0;
+        let answerIdValue: number = 0;
         let answerText = "";
 
-        // Handle different answer types
         if (queTypeId === 1) {
-          // Single select
           answerIdValue = (answerId as number) || 0;
         } else if (queTypeId === 2 || queTypeId === 3) {
-          // Multi select - use first selected or 0
           answerIdValue =
             Array.isArray(answerId) && answerId.length > 0 ? answerId[0] : 0;
         } else if (queTypeId === 4) {
-          // Fill in the blank
           answerText = typeof answerId === "string" ? answerId : "";
           answerIdValue = 0;
         } else if (queTypeId === 5 || queTypeId === 6) {
-          // Drag and drop or Matching
           answerText = JSON.stringify(answerId);
           answerIdValue = 0;
         }
 
-        const payload = {
-          que_type_id: queTypeId,
-          question_id: questionId,
-          answer_id: answerIdValue,
-          answer: answerText,
-          row_num: 1,
-          exam_id: Number(id),
-          user_id: Number(userId),
-          conn: {
-            user: "edusr",
-            password: "sql$erver43",
-            database: "ikh_skuul",
-            server: "172.16.1.79",
-            pool: {
-              max: 100000,
-              min: 0,
-              idleTimeoutMillis: 30000000,
-            },
-            options: {
-              encrypt: false,
-              trustServerCertificate: false,
-            },
-          },
-        };
-
-        const response = await fetch(
-          "https://ottapp.ecm.mn/api/examchoosedanswer",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          }
+        await saveExamAnswer(
+          Number(userId),
+          Number(id),
+          questionId,
+          answerIdValue,
+          queTypeId,
+          answerText,
+          1
         );
 
-        if (!response.ok) {
-          console.error("Failed to save answer:", response.statusText);
-        } else {
-          console.log("Answer saved successfully for question:", questionId);
-        }
+        console.log("✅ Answer saved successfully for question:", questionId);
       } catch (error) {
-        console.error("Error saving answer:", {
+        console.error("❌ Error saving answer:", {
           questionId,
           queTypeId,
           error: error instanceof Error ? error.message : String(error),
@@ -182,6 +147,7 @@ export default function ExamPage() {
 
   const handleSingleAnswerChange = useCallback(
     (qid: number, answerId: number | null) => {
+      console.log("📝 Single answer change:", { qid, answerId });
       setSelectedAnswers((prev) => ({ ...prev, [qid]: answerId }));
 
       const question = questions.find((q) => q.question_id === qid);
@@ -194,6 +160,7 @@ export default function ExamPage() {
 
   const handleMultiAnswerChange = useCallback(
     (qid: number, answerIds: number[]) => {
+      console.log("📝 Multi answer change:", { qid, answerIds });
       setSelectedAnswers((prev) => ({ ...prev, [qid]: answerIds }));
 
       const question = questions.find((q) => q.question_id === qid);
@@ -206,6 +173,7 @@ export default function ExamPage() {
 
   const handleFillInTheBlankChange = useCallback(
     (qid: number, answerText: string) => {
+      console.log("📝 Fill in the blank change:", { qid, answerText });
       setSelectedAnswers((prev) => ({ ...prev, [qid]: answerText }));
 
       const question = questions.find((q) => q.question_id === qid);
@@ -218,6 +186,7 @@ export default function ExamPage() {
 
   const handleDragDropChange = useCallback(
     (qid: number, orderedIds: any) => {
+      console.log("📝 Drag and drop change:", { qid, orderedIds });
       setSelectedAnswers((prev) => ({ ...prev, [qid]: orderedIds }));
 
       const question = questions.find((q) => q.question_id === qid);
@@ -239,6 +208,26 @@ export default function ExamPage() {
       prev.includes(qid) ? prev.filter((id) => id !== qid) : [...prev, qid]
     );
   }, []);
+
+  const handleSubmitSuccess = useCallback((testId: number) => {
+    console.log("🎉 Exam submitted successfully! Test ID:", testId);
+  }, []);
+
+  const handleSubmitError = useCallback((error: string) => {
+    console.error("❌ Submit error:", error);
+  }, []);
+
+  // ✅ NEW: Calculate answered questions count
+  const answeredQuestionsCount = useMemo(() => {
+    return Object.keys(selectedAnswers).filter((key) => {
+      const answer = selectedAnswers[Number(key)];
+      if (answer === null || answer === undefined) return false;
+      if (typeof answer === "string") return answer.trim().length > 0;
+      if (Array.isArray(answer)) return answer.length > 0;
+      if (typeof answer === "object") return Object.keys(answer).length > 0;
+      return true;
+    }).length;
+  }, [selectedAnswers]);
 
   const examInfoDisplay = useMemo(() => {
     if (examInfo.length === 0) return null;
@@ -281,7 +270,6 @@ export default function ExamPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 p-2 sm:p-4">
-      {/* MiniMap - Desktop only */}
       <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
         <MiniMap
           questions={displayQuestions}
@@ -289,10 +277,21 @@ export default function ExamPage() {
           bookmarks={bookmarks}
           onJump={handleJumpToQuestion}
         />
+        <div className="mt-4">
+          {examInfo.length > 0 && (
+            <SubmitExamButtonWithDialog
+              userId={Number(userId)}
+              startEid={examInfo[0].start_eid}
+              examTime={examInfo[0].minut || 0}
+              examInfo={examInfo[0]}
+              totalQuestions={displayQuestions.length}
+              answeredQuestions={answeredQuestionsCount}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="w-full lg:w-4/6 space-y-4 sm:space-y-6">
+      <div className="w-full lg:w-4/6 space-y-4 sm:space-y-6 sticky">
         {examInfoDisplay}
 
         {displayQuestions.map((question) => (
@@ -312,7 +311,6 @@ export default function ExamPage() {
         ))}
       </div>
 
-      {/* Timer - Desktop only */}
       <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
         {examInfo.length > 0 && (
           <ITimer
@@ -323,7 +321,6 @@ export default function ExamPage() {
         )}
       </div>
 
-      {/* Mobile Timer - Fixed at bottom */}
       {examInfo.length > 0 && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 shadow-lg z-50">
           <ITimer
@@ -422,14 +419,14 @@ const QuestionItem = React.memo(
           />
         )}
 
-        {question.que_type_id === 5 && (
+        {/* {question.que_type_id === 5 && (
           <DragAndDropWrapper
             answers={answers}
             onOrderChange={(orderedIds) =>
               onDragDropChange(question.question_id, orderedIds)
             }
           />
-        )}
+        )} */}
 
         {question.que_type_id === 6 && (
           <MatchingByLineWrapper

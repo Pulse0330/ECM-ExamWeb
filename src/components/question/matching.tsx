@@ -38,15 +38,20 @@ interface Connection {
 const ImageDialog = ({
   item,
   isQuestion,
+  isMobileView = false,
 }: {
   item: QuestionItem;
   isQuestion: boolean;
+  isMobileView?: boolean;
 }) => (
   <Dialog>
     <DialogTrigger asChild>
       <button
         type="button"
-        className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+        className={cn(
+          "absolute top-1 p-1 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10",
+          isQuestion || isMobileView ? "left-1" : "right-1"
+        )}
         title="Зургийг томруулах"
         onClick={(e) => e.stopPropagation()}
       >
@@ -64,6 +69,11 @@ const ImageDialog = ({
           src={item.answer_img!}
           alt={item.answer_name_html}
           className="max-w-full max-h-full object-contain"
+          onError={(e) => {
+            console.error("❌ Dialog image load failed:", item.answer_img);
+            e.currentTarget.src =
+              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3EЗураг алга%3C/text%3E%3C/svg%3E";
+          }}
         />
       </div>
       {item.answer_name_html && (
@@ -86,6 +96,16 @@ export default function MatchingByLine({
   const [isMobile, setIsMobile] = useState(false);
   const updateXarrow = useXarrow();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // ✅ Track if onMatchChange was already called for current connections
+  const lastNotifiedRef = useRef<string>("");
+
+  // ✅ Store onMatchChange in ref to avoid re-triggering
+  const onMatchChangeRef = useRef(onMatchChange);
+
+  useEffect(() => {
+    onMatchChangeRef.current = onMatchChange;
+  }, [onMatchChange]);
 
   // ✅ answer_id ашиглан unique болгох
   const questionsOnly = useMemo(() => {
@@ -144,25 +164,31 @@ export default function MatchingByLine({
     return () => window.removeEventListener("resize", updateXarrow);
   }, [updateXarrow]);
 
+  // ✅ FIXED: Only notify parent when connections actually change
   useEffect(() => {
-    if (onMatchChange) {
-      const matches: Record<number, number> = connections.reduce(
-        (acc, conn) => {
-          const startAnswerId = parseInt(conn.start.replace("q-", ""));
-          const endAnswerId = parseInt(conn.end.replace("a-", ""));
-          if (!isNaN(startAnswerId) && !isNaN(endAnswerId)) {
-            acc[startAnswerId] = endAnswerId;
-          }
-          return acc;
-        },
-        {} as Record<number, number>
-      );
+    if (!onMatchChangeRef.current) return;
 
-      console.log("🔗 Connections:", matches);
-      onMatchChange(matches);
+    const matches: Record<number, number> = {};
+
+    connections.forEach((conn) => {
+      const startAnswerId = parseInt(conn.start.replace("q-", ""));
+      const endAnswerId = parseInt(conn.end.replace("a-", ""));
+      if (!isNaN(startAnswerId) && !isNaN(endAnswerId)) {
+        matches[startAnswerId] = endAnswerId;
+      }
+    });
+
+    const matchesStr = JSON.stringify(matches);
+
+    // ⚠️ Only call onMatchChange if connections changed
+    if (lastNotifiedRef.current !== matchesStr) {
+      console.log("🔗 [matching.tsx] Notifying parent - Connections:", matches);
+      lastNotifiedRef.current = matchesStr;
+      onMatchChangeRef.current(matches);
     }
+
     setTimeout(updateXarrow, 0);
-  }, [connections, onMatchChange, updateXarrow]);
+  }, [connections, updateXarrow]);
 
   const isSelected = (id: string) => id === activeStart;
   const isConnected = (id: string) =>
@@ -203,16 +229,58 @@ export default function MatchingByLine({
     }
   };
 
-  const renderContent = (item: QuestionItem, isQuestion: boolean) => {
-    if (item.answer_img) {
+  const renderContent = (
+    item: QuestionItem,
+    isQuestion: boolean,
+    isMobileView: boolean = false
+  ) => {
+    // Зургийн URL шалгах
+    const hasValidImage =
+      item.answer_img &&
+      item.answer_img.trim() !== "" &&
+      item.answer_img.startsWith("http") &&
+      !item.answer_img.includes("???????");
+
+    if (hasValidImage) {
+      const imageUrl = item.answer_img as string; // Type assertion
+
+      // Desktop дээр хариулт: текст зүүн, зураг баруун
+      if (!isMobileView && !isQuestion) {
+        return (
+          <div className="flex items-center gap-3 w-full">
+            <span
+              className="text-sm font-medium text-gray-700 line-clamp-3 flex-1 text-left"
+              dangerouslySetInnerHTML={{ __html: item.answer_name_html }}
+            />
+            <div className="relative flex-shrink-0 w-12 h-12 rounded-md overflow-hidden shadow-sm border border-gray-200 bg-gray-100">
+              <img
+                src={imageUrl}
+                alt={item.answer_name_html}
+                loading="lazy"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.error("❌ Image load failed:", imageUrl);
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+
+      // Асуулт (desktop) эсвэл Mobile: зураг зүүн, текст баруун
       return (
         <div className="flex items-center gap-3 w-full">
-          <div className="relative flex-shrink-0 w-12 h-12 rounded-md overflow-hidden shadow-sm border border-gray-200">
+          <div className="relative flex-shrink-0 w-12 h-12 rounded-md overflow-hidden shadow-sm border border-gray-200 bg-gray-100">
             <img
-              src={item.answer_img}
+              src={imageUrl}
               alt={item.answer_name_html}
               loading="lazy"
               className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error("❌ Image load failed:", imageUrl);
+                e.currentTarget.style.display = "none";
+              }}
             />
           </div>
           <span
@@ -268,10 +336,16 @@ export default function MatchingByLine({
                     )}
                   >
                     <div className="flex items-center justify-between w-full">
-                      {renderContent(q, true)}
-                      {q.answer_img && (
-                        <ImageDialog item={q} isQuestion={true} />
-                      )}
+                      {renderContent(q, true, true)}
+                      {q.answer_img &&
+                        q.answer_img.startsWith("http") &&
+                        !q.answer_img.includes("???????") && (
+                          <ImageDialog
+                            item={q}
+                            isQuestion={true}
+                            isMobileView={true}
+                          />
+                        )}
                       {isConnected(qid) && (
                         <Check className="flex-shrink-0 w-5 h-5 text-green-600 ml-2" />
                       )}
@@ -287,10 +361,16 @@ export default function MatchingByLine({
                         Сонгосон хариулт:
                       </div>
                       <div className="p-3 bg-green-50 rounded border border-green-500 relative">
-                        {renderContent(answerItem, false)}
-                        {answerItem.answer_img && (
-                          <ImageDialog item={answerItem} isQuestion={false} />
-                        )}
+                        {renderContent(answerItem, false, true)}
+                        {answerItem.answer_img &&
+                          answerItem.answer_img.startsWith("http") &&
+                          !answerItem.answer_img.includes("???????") && (
+                            <ImageDialog
+                              item={answerItem}
+                              isQuestion={false}
+                              isMobileView={true}
+                            />
+                          )}
                       </div>
                     </div>
                   )}
@@ -317,10 +397,16 @@ export default function MatchingByLine({
                                 "w-full cursor-pointer justify-start min-h-[50px] bg-yellow-50 border-dashed border-blue-500 hover:bg-yellow-100 text-left p-3 relative"
                               )}
                             >
-                              {renderContent(a, false)}
-                              {a.answer_img && (
-                                <ImageDialog item={a} isQuestion={false} />
-                              )}
+                              {renderContent(a, false, true)}
+                              {a.answer_img &&
+                                a.answer_img.startsWith("http") &&
+                                !a.answer_img.includes("???????") && (
+                                  <ImageDialog
+                                    item={a}
+                                    isQuestion={false}
+                                    isMobileView={true}
+                                  />
+                                )}
                             </div>
                           );
                         })}
@@ -331,6 +417,7 @@ export default function MatchingByLine({
             })}
           </div>
         ) : (
+          /* ======================== DESKTOP UI ======================== */
           <div className="flex gap-10 justify-between">
             {/* Асуултын багана */}
             <div className="flex-1">
@@ -356,13 +443,22 @@ export default function MatchingByLine({
                         "bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm"
                     )}
                   >
-                    {renderContent(q, true)}
-                    {q.answer_img && <ImageDialog item={q} isQuestion={true} />}
+                    {renderContent(q, true, false)}
+                    {q.answer_img &&
+                      q.answer_img.startsWith("http") &&
+                      !q.answer_img.includes("???????") && (
+                        <ImageDialog
+                          item={q}
+                          isQuestion={true}
+                          isMobileView={false}
+                        />
+                      )}
                   </div>
                 );
               })}
             </div>
 
+            {/* Хариултын багана */}
             <div className="flex-1">
               <h3 className="border-b pb-2.5 mb-2 font-medium text-gray-700">
                 Хариултын багана
@@ -375,7 +471,7 @@ export default function MatchingByLine({
                     id={aid}
                     onClick={() => handleItemClick(aid, false)}
                     className={cn(
-                      "w-full cursor-pointer my-2.5 p-4 rounded-lg border-2 transition-all min-h-[80px] flex items-center justify-end relative",
+                      "w-full cursor-pointer my-2.5 p-4 rounded-lg border-2 transition-all min-h-[80px] flex items-center relative",
                       isConnected(aid) &&
                         "bg-green-50 border-green-500 shadow-sm",
                       activeStart &&
@@ -386,10 +482,16 @@ export default function MatchingByLine({
                         "bg-white border-gray-200 opacity-60 hover:opacity-80"
                     )}
                   >
-                    {renderContent(a, false)}
-                    {a.answer_img && (
-                      <ImageDialog item={a} isQuestion={false} />
-                    )}
+                    {renderContent(a, false, false)}
+                    {a.answer_img &&
+                      a.answer_img.startsWith("http") &&
+                      !a.answer_img.includes("???????") && (
+                        <ImageDialog
+                          item={a}
+                          isQuestion={false}
+                          isMobileView={false}
+                        />
+                      )}
                   </div>
                 );
               })}

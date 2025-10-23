@@ -17,6 +17,7 @@ interface SingleSelectQuestionProps {
   mode: "exam" | "review";
   selectedAnswer?: number | null;
   onAnswerChange?: (questionId: number, answerId: number | null) => void;
+  readOnly?: boolean;
 }
 
 function SingleSelectQuestion({
