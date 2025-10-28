@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import DragAndDrop from "./DragAndDrop";
 
 interface Answer {
@@ -9,58 +9,71 @@ interface Answer {
 }
 
 interface DragAndDropWrapperProps {
-  answers: Answer[];
   questionId: number;
-  examId: number;
-  userId: number;
+  examId?: number;
+  userId?: number;
+  answers: Answer[];
+  mode: "exam" | "review";
+  userAnswers?: number[];
+  correctAnswers?: number[];
+  readOnly?: boolean;
   onOrderChange?: (orderedIds: number[]) => void;
 }
 
 export default function DragAndDropWrapper({
-  answers,
   questionId,
   examId,
   userId,
+  answers,
+  mode,
+  userAnswers = [],
+  correctAnswers = [],
   onOrderChange,
 }: DragAndDropWrapperProps) {
   const [items, setItems] = useState<Answer[]>(answers);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Шалгалт өгсөн хариултаар эрэмбэлэх
   useEffect(() => {
-    setItems(answers);
-  }, [answers]);
+    if (mode === "review" && userAnswers.length > 0) {
+      const sorted = userAnswers
+        .map((id) => answers.find((a) => a.answer_id === id))
+        .filter(Boolean) as Answer[];
+      setItems(sorted);
+    } else {
+      setItems(answers);
+    }
+  }, [answers, userAnswers, mode]);
 
+  // Drag хийсний дараа callback дуудах
   const handleOrderChange = useCallback(
     (orderedIds: number[]) => {
-      console.log("📝 Drag and drop new order:", orderedIds);
-
-      // Clear previous timeout
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      // Debounce: wait 1.5 seconds before calling parent
-      saveTimeoutRef.current = setTimeout(() => {
-        // Let parent component handle the save
+      if (mode === "exam") {
         onOrderChange?.(orderedIds);
-      }, 1500);
+      }
     },
-    [onOrderChange]
+    [onOrderChange, mode]
   );
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
-
   return (
-    <div>
-      <h3 className="font-semibold mb-2">Зөв дараалалд оруулна уу</h3>
-      <DragAndDrop answers={items} onOrderChange={handleOrderChange} />
+    <div className="p-4 border rounded-lg shadow-sm bg-white space-y-3">
+      <h3 className="font-semibold text-base sm:text-lg">
+        {mode === "exam" ? "Зөв дараалалд оруулна уу:" : "Таны өгсөн дараалал:"}
+      </h3>
+
+      <DragAndDrop
+        answers={items}
+        onOrderChange={handleOrderChange}
+        disabled={mode === "review"}
+        showCorrect={mode === "review"}
+        correctIds={correctAnswers}
+      />
+
+      {mode === "review" && (
+        <div className="mt-3 text-sm text-gray-600">
+          <p>✅ Ногоон — зөв байрлалд байгаа хариулт</p>
+          <p>❌ Улаан — буруу байрлалд байгаа хариулт</p>
+        </div>
+      )}
     </div>
   );
 }

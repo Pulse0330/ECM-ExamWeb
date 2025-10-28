@@ -20,7 +20,6 @@ export default function Imenu() {
     <div className="flex items-center justify-between w-full">
       <NavigationMenu>
         <NavigationMenuList>
-          {/* Үндсэн хуудас */}
           <NavigationMenuItem>
             <NavigationMenuLink asChild>
               <Link href="/home" className={navigationMenuTriggerStyle()}>
@@ -29,7 +28,6 @@ export default function Imenu() {
             </NavigationMenuLink>
           </NavigationMenuItem>
 
-          {/* Шалгалт */}
           <NavigationMenuItem>
             <NavigationMenuTrigger>Шалгалт</NavigationMenuTrigger>
             <NavigationMenuContent>
@@ -47,7 +45,6 @@ export default function Imenu() {
             </NavigationMenuContent>
           </NavigationMenuItem>
 
-          {/* Хичээл */}
           <NavigationMenuItem>
             <NavigationMenuTrigger>Хичээл</NavigationMenuTrigger>
             <NavigationMenuContent>
@@ -65,7 +62,6 @@ export default function Imenu() {
             </NavigationMenuContent>
           </NavigationMenuItem>
 
-          {/* Хэрэглэгчийн мэдээлэл */}
           <NavigationMenuItem>
             <NavigationMenuLink asChild>
               <Link href="/user" className={navigationMenuTriggerStyle()}>
@@ -75,11 +71,6 @@ export default function Imenu() {
           </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>
-
-      {/* Theme Toggle */}
-      <div className="flex flex-initial ml-auto items-center">
-        <AnimatedThemeToggler />
-      </div>
     </div>
   );
 }

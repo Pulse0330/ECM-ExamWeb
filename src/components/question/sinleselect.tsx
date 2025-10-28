@@ -3,21 +3,23 @@
 import React, { memo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 interface AnswerData {
   answer_id: number;
   answer_name_html?: string;
   answer_img?: string;
+  is_true?: boolean; // зөв хариулт
 }
 
 interface SingleSelectQuestionProps {
   questionId: number;
   questionText?: string;
   answers: AnswerData[];
-  mode: "exam" | "review";
+  mode: "exam" | "review"; // exam: user can select | review: readonly result view
   selectedAnswer?: number | null;
+  correctAnswerId?: number | null;
   onAnswerChange?: (questionId: number, answerId: number | null) => void;
-  readOnly?: boolean;
 }
 
 function SingleSelectQuestion({
@@ -26,6 +28,7 @@ function SingleSelectQuestion({
   answers,
   mode,
   selectedAnswer,
+  correctAnswerId,
   onAnswerChange,
 }: SingleSelectQuestionProps) {
   const isReviewMode = mode === "review";
@@ -44,6 +47,19 @@ function SingleSelectQuestion({
       <div className="space-y-2 sm:space-y-3">
         {answers.map((option) => {
           const isSelected = selectedAnswer === option.answer_id;
+          const isCorrect =
+            option.is_true || correctAnswerId === option.answer_id;
+
+          // ✅ Review mode өнгөний логик
+          const colorClass = isReviewMode
+            ? isCorrect
+              ? "border-green-500 bg-green-50"
+              : isSelected
+              ? "border-red-500 bg-red-50"
+              : "border-border bg-background"
+            : isSelected
+            ? "border-primary bg-primary/10"
+            : "border-border bg-background";
 
           return (
             <Button
@@ -51,29 +67,38 @@ function SingleSelectQuestion({
               onClick={() => handleSelect(option.answer_id)}
               variant="outline"
               disabled={isReviewMode}
-              className={`flex items-start gap-2 sm:gap-3 w-full justify-start p-2 sm:p-3 border rounded-md transition-colors h-auto min-h-[44px]
-                ${isSelected ? "border-primary bg-primary/10" : "border-border"}
-                ${
-                  isReviewMode ? "cursor-default opacity-70" : "hover:bg-accent"
-                }
-              `}
+              className={`relative flex items-start gap-2 sm:gap-3 w-full justify-start p-2 sm:p-3 rounded-md border transition-colors h-auto min-h-[44px] ${colorClass}`}
             >
-              {/* Radio дугуй */}
+              {/* ✅ Review mode icon (correct/incorrect) */}
+              {isReviewMode && (
+                <div className="absolute right-3 top-3">
+                  {isCorrect ? (
+                    <CheckCircle2 className="text-green-600 w-5 h-5" />
+                  ) : isSelected ? (
+                    <XCircle className="text-red-600 w-5 h-5" />
+                  ) : null}
+                </div>
+              )}
+
+              {/* Radio circle */}
               <span
                 className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5
-                  ${
-                    isSelected
-                      ? "border-primary bg-primary"
-                      : "border-border bg-background"
-                  }
-                `}
+                ${
+                  isSelected
+                    ? isReviewMode
+                      ? isCorrect
+                        ? "border-green-500 bg-green-500"
+                        : "border-red-500 bg-red-500"
+                      : "border-primary bg-primary"
+                    : "border-border bg-background"
+                }`}
               >
                 {isSelected && (
                   <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-primary-foreground rounded-full" />
                 )}
               </span>
 
-              {/* Зурагт зориулсан блок */}
+              {/* Хэрвээ зураг байвал */}
               {option.answer_img && (
                 <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 border rounded-md overflow-hidden bg-white">
                   <Image
@@ -86,7 +111,6 @@ function SingleSelectQuestion({
                 </div>
               )}
 
-              {/* Сонголтын текст - word-wrap болон overflow fix */}
               <span
                 className="flex-1 min-w-0 text-left text-sm sm:text-base break-words overflow-wrap-anywhere leading-relaxed"
                 dangerouslySetInnerHTML={{

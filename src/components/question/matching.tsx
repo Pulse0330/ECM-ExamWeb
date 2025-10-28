@@ -27,6 +27,7 @@ interface MatchingByLineProps {
   questions: QuestionItem[];
   answers: QuestionItem[];
   onMatchChange?: (matches: Record<number, number>) => void;
+  readonly?: boolean;
 }
 
 interface Connection {

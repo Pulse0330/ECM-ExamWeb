@@ -5,19 +5,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { getHomeScreen } from "@/lib/api";
 import {
-  Loader2,
   TrendingUp,
   ArrowRight,
   Trophy,
   Zap,
   Lightbulb,
-  Speaker,
   Calendar,
   DollarSign,
   ExternalLink,
-  Eye,
-  EyeOff,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const cn = (...classes: (string | undefined)[]) =>
   classes.filter(Boolean).join(" ");
@@ -40,8 +39,6 @@ export default function Home() {
     showLatestScoreValue: true,
     showTotalExamsValue: true,
   });
-
-  const backgroundClass = "bg-slate-50 dark:bg-gray-950";
 
   const handleToggle = useCallback((metric: keyof typeof metricVisibility) => {
     setMetricVisibility((prev) => ({
@@ -66,14 +63,18 @@ export default function Home() {
   }) => (
     <div
       className={cn(
-        "p-6 rounded-2xl transition-all duration-500 shadow-xl cursor-pointer",
+        "relative p-6 rounded-2xl transition-all duration-500 shadow-xl cursor-pointer overflow-hidden",
         "hover:shadow-2xl hover:translate-y-[-4px]",
-        "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50 border border-gray-100 dark:border-gray-800 hover:shadow-indigo-300/50 dark:hover:shadow-indigo-700/50",
+        "bg-white dark:bg-gray-900",
+        "border border-gray-100 dark:border-gray-800/50",
+        "hover:border-gray-300 dark:hover:border-gray-700",
+        "hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/50",
         className
       )}
       style={getAnimationStyles(delay)}
     >
-      {children}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+      <div className="relative z-10">{children}</div>
     </div>
   );
 
@@ -86,36 +87,25 @@ export default function Home() {
     className?: string;
     delay?: number;
   }) => {
-    const lightModeClasses = cn(
-      "bg-white border border-gray-100",
-      "shadow-xl shadow-indigo-100/60",
-      "text-gray-900",
-      "hover:border-indigo-300 hover:shadow-indigo-200/80"
-    );
-
-    const darkModeClasses = cn(
-      "dark:bg-gray-900 dark:border-gray-800 dark:text-white",
-      "dark:shadow-2xl dark:shadow-indigo-900/50",
-      "dark:hover:shadow-indigo-700/50"
-    );
-
     return (
       <div
         className={cn(
           "relative p-8 rounded-3xl overflow-hidden cursor-pointer",
           "transition-all duration-300 hover:scale-[1.01]",
-          lightModeClasses,
-          darkModeClasses,
+          "bg-white dark:bg-gray-900",
+          "border border-indigo-100 dark:border-indigo-900/30",
+          "shadow-xl shadow-indigo-100/60 dark:shadow-indigo-900/50",
+          "hover:shadow-2xl hover:shadow-indigo-200/80 dark:hover:shadow-indigo-700/50",
+          "hover:border-indigo-200 dark:hover:border-indigo-800/50",
           className
         )}
         style={getAnimationStyles(delay)}
       >
-        <div className="absolute inset-0 z-0 opacity-40 blur-xl pointer-events-none">
+        <div className="absolute inset-0 z-0 opacity-30 blur-xl pointer-events-none">
           <div
             className={cn(
-              "absolute w-2/3 h-2/3 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-[magic-move_10s_linear_infinite] bg-gradient-to-r",
-              "from-blue-200/50 to-indigo-200/50",
-              "dark:from-indigo-500/70 dark:to-fuchsia-500/70"
+              "absolute w-2/3 h-2/3 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-[magic-move_10s_linear_infinite]",
+              "bg-indigo-300/40 dark:bg-indigo-500/60"
             )}
             style={{ left: "50%", top: "50%" }}
           />
@@ -133,55 +123,17 @@ export default function Home() {
   ) => {
     if (isVisible) {
       return (
-        <p className={cn("text-6xl font-extrabold mt-2", colorClass)}>
+        <p className={cn("text-4xl font-bold mt-2", colorClass)}>
           {value}
           {suffix}
         </p>
       );
     }
-    return (
-      <span
-        className={cn(
-          "inline-block text-6xl font-extrabold mt-2 px-2 py-1 select-none blur-sm transition-all duration-300",
-          colorClass,
-          "text-gray-300 dark:text-gray-700"
-        )}
-      >
-        ***
-      </span>
-    );
   };
 
-  // Loading state
-  if (isPending) {
-    return (
-      <div
-        className={cn(
-          backgroundClass,
-          "font-inter min-h-screen transition-colors duration-500"
-        )}
-      >
-        <main className="flex justify-center items-center py-16 min-h-screen">
-          <div className="flex justify-center items-center h-96 p-8">
-            <Loader2 className="mr-2 h-8 w-8 animate-spin text-indigo-500" />
-            <p className="text-lg text-gray-600 dark:text-gray-400">
-              Өгөгдөл татаж байна...
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Error state
   if (isError || !apiData) {
     return (
-      <div
-        className={cn(
-          backgroundClass,
-          "font-inter max-h-screen transition-colors duration-500"
-        )}
-      ></div>
+      <div className={cn("max-h-screen transition-colors duration-500")}></div>
     );
   }
 
@@ -189,17 +141,19 @@ export default function Home() {
   const examPackages = apiData.RetDataSecond || [];
   const activeExams = apiData.RetDataThirt || [];
   const pastExams = apiData.RetDataFourth || [];
-
+  const router = useRouter();
   const suggestedExam = activeExams.length > 0 ? activeExams[0] : null;
 
   return (
-    <div
-      className={cn(
-        backgroundClass,
-        "font-inter min-h-screen transition-colors duration-500"
-      )}
-    >
+    <div className={cn("min-h-screen transition-colors duration-500")}>
       <style jsx global>{`
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+        * {
+          font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+            sans-serif;
+        }
+
         @keyframes fadeIn {
           from {
             opacity: 0;
@@ -238,12 +192,12 @@ export default function Home() {
               <div
                 className={cn(
                   "flex justify-between items-start mb-6 pb-3 border-b",
-                  "border-indigo-300/70 dark:border-indigo-400/50"
+                  "border-indigo-300 dark:border-indigo-700"
                 )}
               >
                 <div className="flex items-center space-x-3">
-                  <Lightbulb className="w-8 h-8 flex-shrink-0 text-yellow-600 dark:text-yellow-300" />
-                  <p className="text-xl font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-200">
+                  <Lightbulb className="w-8 h-8 flex-shrink-0 text-yellow-600 dark:text-yellow-400" />
+                  <p className="text-xl font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
                     Танд ойр шалгалт
                   </p>
                 </div>
@@ -264,34 +218,31 @@ export default function Home() {
 
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end">
                 <div className="space-y-1 mb-4 sm:mb-0">
-                  <h3
-                    className={cn(
-                      "text-6xl font-extrabold text-transparent bg-clip-text transition-all hover:text-white/90 dark:hover:text-white/90",
-                      "bg-gradient-to-r from-blue-700 to-purple-700",
-                      "dark:from-white dark:to-indigo-300"
-                    )}
-                  >
+                  <h3 className="text-3xl sm:text-4xl font-bold text-indigo-700 dark:text-indigo-300">
                     {suggestedExam.title}
                   </h3>
-                  <p className="text-lg mt-1 pt-1 italic text-gray-700 dark:text-indigo-200">
+                  <p className="text-base mt-1 pt-1 italic text-gray-700 dark:text-gray-300">
                     {suggestedExam.help || "Анхааралтай бөглөнө үү"}
                   </p>
-                  <p className="text-sm font-medium text-indigo-500 dark:text-indigo-400">
+                  <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
                     Багш: {suggestedExam.teach_name}
                   </p>
                 </div>
 
                 <div className="flex flex-col items-end space-y-2">
-                  <button
+                  <Button
+                    onClick={() =>
+                      router.push(`/exam/${suggestedExam.exam_id}`)
+                    }
                     className={cn(
-                      "flex items-center px-7 py-3 rounded-full font-extrabold shadow-2xl transition-colors transform hover:scale-[1.05] relative overflow-hidden group",
-                      "bg-white text-indigo-700 hover:bg-indigo-100",
-                      "dark:bg-indigo-700 dark:text-white dark:hover:bg-indigo-800"
+                      "flex items-center px-6 py-2.5 rounded-full font-bold shadow-xl transition-all transform hover:scale-105",
+                      "bg-indigo-600 text-white hover:bg-indigo-700",
+                      "dark:bg-indigo-700 dark:hover:bg-indigo-800"
                     )}
                   >
-                    <span className="text-xl tracking-wide">Эхлэх </span>
-                    <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                    <span className="text-base tracking-wide">Эхлэх</span>
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
                 </div>
               </div>
             </MagicHeroCard>
@@ -300,27 +251,19 @@ export default function Home() {
           {/* Статистик */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <DashboardCard delay={300}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  <p className="text-base font-semibold text-gray-500 dark:text-gray-400">
+                  <p className="text-base font-semibold text-gray-600 dark:text-gray-300">
                     Идэвхтэй Шалгалт
                   </p>
-                  <button
-                    onClick={() => handleToggle("showCompletionRateValue")}
-                    className="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1 rounded-full -m-1"
-                  >
-                    {metricVisibility.showCompletionRateValue ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
                 </div>
-                <TrendingUp className="w-6 h-6 text-green-500" />
+                <div className="p-2 rounded-xl bg-green-100 dark:bg-green-900/30">
+                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
               </div>
               {renderMetricValue(
                 activeExams.length,
-                "text-green-500",
+                "text-green-600 dark:text-green-400",
                 metricVisibility.showCompletionRateValue
               )}
               <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">
@@ -329,27 +272,19 @@ export default function Home() {
             </DashboardCard>
 
             <DashboardCard delay={400}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  <p className="text-base font-semibold text-gray-500 dark:text-gray-400">
+                  <p className="text-base font-semibold text-gray-600 dark:text-gray-300">
                     Өмнөх Сорилууд
                   </p>
-                  <button
-                    onClick={() => handleToggle("showLatestScoreValue")}
-                    className="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1 rounded-full -m-1"
-                  >
-                    {metricVisibility.showLatestScoreValue ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
                 </div>
-                <Trophy className="w-6 h-6 text-yellow-500" />
+                <div className="p-2 rounded-xl bg-yellow-100 dark:bg-yellow-900/30">
+                  <Trophy className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
               </div>
               {renderMetricValue(
                 pastExams.length,
-                "text-yellow-500",
+                "text-yellow-600 dark:text-yellow-400",
                 metricVisibility.showLatestScoreValue
               )}
               <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">
@@ -358,27 +293,19 @@ export default function Home() {
             </DashboardCard>
 
             <DashboardCard delay={500}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  <p className="text-base font-semibold text-gray-500 dark:text-gray-400">
+                  <p className="text-base font-semibold text-gray-600 dark:text-gray-300">
                     Нийт Багц
                   </p>
-                  <button
-                    onClick={() => handleToggle("showTotalExamsValue")}
-                    className="text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors p-1 rounded-full -m-1"
-                  >
-                    {metricVisibility.showTotalExamsValue ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
                 </div>
-                <Zap className="w-6 h-6 text-purple-500" />
+                <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/30">
+                  <Zap className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
               </div>
               {renderMetricValue(
                 examPackages.length,
-                "text-purple-500",
+                "text-purple-600 dark:text-purple-400",
                 metricVisibility.showTotalExamsValue
               )}
               <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">
@@ -386,96 +313,218 @@ export default function Home() {
               </p>
             </DashboardCard>
           </div>
+          <div className="py-4 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {announcements.map((announcement) => (
+                <div
+                  key={announcement.title}
+                  className="group flex flex-col bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-800/50 hover:border-indigo-200 dark:hover:border-indigo-800/70 hover:shadow-xl hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/50 transition-all duration-300 cursor-pointer overflow-hidden"
+                >
+                  {/* Зураг */}
+                  <div className="relative w-full h-64 md:h-72 lg:h-80 bg-indigo-50 dark:bg-indigo-900/30 overflow-hidden">
+                    {announcement.filename ? (
+                      <Image
+                        src={announcement.filename}
+                        alt={announcement.title || "Announcement image"}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        priority={false}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600">
+                        Зураг байхгүй
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
+
+                  {/* Агуулга */}
+                  <div className="flex-1 p-5 flex flex-col">
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2 line-clamp-2 leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {announcement.title}
+                    </h3>
+                    <p className="flex-grow text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-4 leading-relaxed">
+                      {announcement.descr.trim()}
+                    </p>
+                    <a
+                      href={announcement.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Дэлгэрэнгүй ${announcement.title}`}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg transition-colors border border-indigo-200 dark:border-indigo-700 self-start"
+                    >
+                      <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                        Дэлгэрэнгүй
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           {/* Идэвхтэй Шалгалтууд */}
           <div className="py-4" style={getAnimationStyles(600)}>
-            <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">
               Идэвхтэй Шалгалтууд
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {activeExams.map((exam) => (
-                <DashboardCard key={exam.exam_id}>
-                  <h3 className="text-xl font-bold mb-2">{exam.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Багш: {exam.teach_name}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Асуулт: {exam.que_cnt} | {exam.exam_minute} минут
-                  </p>
-                  <p className="text-2xl font-bold text-indigo-500 mb-4">
-                    {exam.amount.toLocaleString()}₮
-                  </p>
-                  <button className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                    {exam.flag_name}
-                  </button>
-                </DashboardCard>
+                <div
+                  key={exam.exam_id}
+                  className="group relative bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-100 dark:border-gray-800/50 hover:border-indigo-200 dark:hover:border-indigo-800/50 shadow-md hover:shadow-xl hover:shadow-indigo-100/50 dark:hover:shadow-indigo-900/30 transition-all duration-300 cursor-pointer overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+
+                  <div className="relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 pr-3">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          {exam.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{exam.ognoo}</span>
+                        </div>
+                      </div>
+                      {exam.amount > 0 && (
+                        <div className="flex-shrink-0 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                          {exam.amount.toLocaleString()}₮
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between py-3 px-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                            Асуулт
+                          </p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            {exam.que_cnt}
+                          </p>
+                        </div>
+                        <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                            Хугацаа
+                          </p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            {exam.exam_minute}'
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                      <span>
+                        Багш:{" "}
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {exam.teach_name}
+                        </span>
+                      </span>
+                    </div>
+
+                    <Button
+                      onClick={() => router.push(`/exam/${exam.exam_id}`)}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                    >
+                      {exam.flag_name}
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
           {/* Өмнөх Жилийн Сорилууд */}
           <div className="py-4" style={getAnimationStyles(700)}>
-            <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">
               ЭЕШ-ийн Сорилууд
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {pastExams.map((exam) => (
-                <DashboardCard key={exam.exam_id}>
-                  <img
-                    src={exam.filename}
-                    alt={exam.soril_name}
-                    className="w-full h-40 object-cover rounded-lg mb-4"
-                  />
-                  <h3 className="text-xl font-bold mb-2">{exam.soril_name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Асуулт: {exam.que_cnt}
-                  </p>
-                  <button className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                    Эхлүүлэх
-                  </button>
-                </DashboardCard>
+                <div
+                  key={exam.exam_id}
+                  className="group bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-green-100 dark:border-green-900/30 hover:border-green-200 dark:hover:border-green-800/50 shadow-lg hover:shadow-2xl hover:shadow-green-200/50 dark:hover:shadow-green-900/50 transition-all duration-300 cursor-pointer"
+                >
+                  <div className="relative overflow-hidden bg-green-50 dark:bg-green-900/20 h-48 flex items-center justify-center">
+                    <img
+                      src={exam.filename}
+                      alt={exam.soril_name}
+                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-green-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="absolute top-3 right-3 px-3 py-1.5 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-xl shadow-lg border-2 border-green-300 dark:border-green-700">
+                      <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                        {exam.que_cnt} асуулт
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 leading-tight group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                      {exam.soril_name}
+                    </h3>
+                    <Button className="w-full py-3 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white text-sm font-semibold rounded-xl shadow-lg shadow-green-500/40 hover:shadow-green-500/60 transition-all">
+                      Эхлүүлэх
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
           {/* Миний шалгалтын багцууд */}
           <div className="py-4" style={getAnimationStyles(800)}>
-            <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
               Миний шалгалтын багцууд
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {examPackages
                 .filter((plan) => plan.ispurchased === 1)
                 .map((plan) => (
                   <div
                     key={plan.planid}
-                    className={cn(
-                      "relative p-6 rounded-2xl shadow-xl border transition-all duration-300 cursor-pointer group overflow-hidden",
-                      "hover:shadow-indigo-500/30 dark:hover:shadow-indigo-700/50 hover:scale-[1.03]",
-                      "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50",
-                      "border-4 border-green-500 shadow-green-400/50 dark:shadow-green-700/50"
-                    )}
+                    className="group relative bg-white dark:bg-gray-900 rounded-xl p-5 border border-green-200 dark:border-green-800/50 hover:border-green-300 dark:hover:border-green-700/70 hover:shadow-xl hover:shadow-green-100/50 dark:hover:shadow-green-900/30 transition-all duration-300 cursor-pointer overflow-hidden"
                   >
-                    <div className="absolute top-0 right-0 p-1 px-3 bg-green-500 text-white font-bold text-xs rounded-bl-lg rounded-tr-xl shadow-lg">
-                      Төлөгдсөн!
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 dark:bg-green-500/10 rounded-full blur-lg"></div>
+                    <div className="absolute top-0 right-0 px-3 py-1.5 bg-green-600 dark:bg-green-700 text-white text-xs font-bold rounded-bl-lg shadow-md">
+                      Идэвхтэй
                     </div>
-                    <div className="flex justify-between items-start mb-2 relative z-10">
-                      <h3 className="text-2xl font-extrabold">{plan.title}</h3>
-                      <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
-                        {plan.rate} <span className="ml-1">⭐</span>
+                    <div className="pt-6 relative z-10">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 pr-16 leading-snug">
+                        {plan.title}
+                      </h3>
+                      <div className="flex items-center justify-between mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            Үнэ
+                          </p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              {plan.amount.toLocaleString()}
+                            </span>
+                            <span className="text-sm text-green-600 dark:text-green-400 font-semibold">
+                              ₮
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                            Үнэлгээ
+                          </p>
+                          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                            {plan.rate} ⭐
+                          </span>
+                        </div>
                       </div>
+                      <Button className="w-full py-2.5 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all">
+                        Эхлүүлэх
+                      </Button>
                     </div>
-                    <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
-                      {plan.amount.toLocaleString()}
-                      <span className="text-2xl font-semibold ml-1">₮</span>
-                    </p>
-                    <button
-                      className={cn(
-                        "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
-                        "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50"
-                      )}
-                    >
-                      Эхлүүлэх
-                    </button>
                   </div>
                 ))}
             </div>
@@ -483,107 +532,53 @@ export default function Home() {
 
           {/* Боломжит шалгалтын багцууд */}
           <div className="py-4" style={getAnimationStyles(900)}>
-            <h2 className="text-3xl font-bold mb-6 flex items-center text-gray-800 dark:text-gray-100">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">
               Боломжит Шалгалтын Багцууд
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {examPackages
                 .filter((plan) => plan.ispurchased !== 1)
                 .map((plan) => (
                   <div
                     key={plan.planid}
-                    className={cn(
-                      "relative p-6 rounded-2xl shadow-xl border transition-all duration-300 cursor-pointer group overflow-hidden",
-                      "hover:shadow-indigo-500/30 dark:hover:shadow-indigo-700/50 hover:scale-[1.03]",
-                      "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-50",
-                      "border-gray-100 dark:border-gray-800 hover:border-indigo-400"
-                    )}
+                    className="group relative bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-100 dark:border-gray-800/50 hover:border-green-200 dark:hover:border-green-800/50 shadow-md hover:shadow-xl hover:shadow-blue-100/50 dark:hover:shadow-blue-900/30 transition-all duration-300 cursor-pointer overflow-hidden"
                   >
-                    <div className="flex justify-between items-start mb-2 relative z-10">
-                      <h3 className="text-2xl font-extrabold">{plan.title}</h3>
-                      <div className="flex items-center text-sm font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 shadow-md border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700">
-                        {plan.rate} <span className="ml-1">⭐</span>
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-lg group-hover:scale-150 transition-transform duration-500"></div>
+
+                    <div className="relative">
+                      <div className="flex items-start justify-between mb-4">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex-1 pr-3 leading-tight group-hover:text-green-600 dark:group-hover:green-blue-400 transition-colors">
+                          {plan.title}
+                        </h3>
+                        <div className="flex-shrink-0 px-2.5 py-1  border-1 border-green-400 rounded-lg shadow-md">
+                          <span className="text-xs font-bold text-white">
+                            {plan.rate} ⭐
+                          </span>
+                        </div>
                       </div>
+
+                      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/30">
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {plan.amount.toLocaleString()}
+                          </span>
+                          <span className="text-sm text-green-600 dark:text-blue-400 font-semibold">
+                            ₮
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                          <DollarSign className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                          <span>{plan.paydescr}</span>
+                        </div>
+                      </div>
+
+                      <Button className="w-full py-2.5 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all">
+                        Дэлгэрэнгүй үзэх
+                      </Button>
                     </div>
-                    <p className="text-5xl font-extrabold text-indigo-500 mt-2 relative z-10 flex items-end">
-                      {plan.amount.toLocaleString()}
-                      <span className="text-2xl font-semibold ml-1">₮</span>
-                    </p>
-                    <p className="text-sm mt-1 flex items-center relative z-10 text-gray-500 dark:text-gray-400">
-                      <DollarSign className="w-4 h-4 mr-1 text-green-500" />{" "}
-                      {plan.paydescr}
-                    </p>
-                    <button
-                      className={cn(
-                        "mt-5 w-full py-3 text-white rounded-xl transition-colors text-lg font-bold transform hover:scale-[1.01] relative z-10",
-                        "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/50"
-                      )}
-                    >
-                      Дэлгэрэнгүй
-                    </button>
                   </div>
                 ))}
             </div>
-          </div>
-
-          {/* Зар мэдээ */}
-          <div className="" style={getAnimationStyles(1000)}>
-            <DashboardCard
-              className="border-l-4 border-indigo-500 hover:translate-y-0 hover:shadow-xl"
-              delay={100}
-            >
-              <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">
-                <div className="flex items-center space-x-3">
-                  <Speaker className="w-7 h-7 mr-2 text-indigo-500 flex-shrink-0" />
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                    Үндсэн Зар Мэдээ
-                  </h2>
-                </div>
-                <a
-                  href="#"
-                  className="text-sm text-indigo-500 hover:text-indigo-400 flex items-center font-bold"
-                >
-                  Бүгдийг харах <ArrowRight className="w-4 h-4 ml-1" />
-                </a>
-              </div>
-              <div className="space-y-4">
-                {announcements.map((announcement, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "flex p-4 rounded-2xl transition-all cursor-pointer items-start group",
-                      "bg-indigo-50/70 backdrop-blur-sm dark:bg-gray-800/80 border border-indigo-100 dark:border-gray-700",
-                      "hover:shadow-lg hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/50"
-                    )}
-                  >
-                    <div className="w-24 h-24 flex-shrink-0 mr-4 overflow-hidden rounded-xl border-4 border-indigo-200 dark:border-indigo-700/50 shadow-md">
-                      <img
-                        src={announcement.filename}
-                        alt={announcement.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex flex-col justify-between h-full">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        {announcement.title}
-                      </h3>
-                      <p className="text-sm line-clamp-2 mt-1 text-gray-600 dark:text-gray-400">
-                        {announcement.descr.split("#")[0].trim()}
-                      </p>
-                      <a
-                        href={announcement.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-indigo-500 hover:text-indigo-400 flex items-center mt-2 font-bold"
-                      >
-                        Дэлгэрэнгүй харах{" "}
-                        <ExternalLink className="w-3 h-3 ml-1" />
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </DashboardCard>
           </div>
         </div>
       </main>

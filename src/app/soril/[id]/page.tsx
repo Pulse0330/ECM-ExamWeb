@@ -217,7 +217,6 @@ export default function ExamPage() {
     console.error("❌ Submit error:", error);
   }, []);
 
-  // ✅ NEW: Calculate answered questions count
   const answeredQuestionsCount = useMemo(() => {
     return Object.keys(selectedAnswers).filter((key) => {
       const answer = selectedAnswers[Number(key)];
@@ -307,6 +306,8 @@ export default function ExamPage() {
             onFillInTheBlankChange={handleFillInTheBlankChange}
             onDragDropChange={handleDragDropChange}
             matchingData={matchingData}
+            examId={Number(id)}
+            userId={Number(userId)}
           />
         ))}
       </div>
@@ -346,6 +347,8 @@ const QuestionItem = React.memo(
     onFillInTheBlankChange,
     onDragDropChange,
     matchingData,
+    examId,
+    userId,
   }: {
     question: Question;
     answers: Answer[];
@@ -357,6 +360,8 @@ const QuestionItem = React.memo(
     onFillInTheBlankChange: (qid: number, text: string) => void;
     onDragDropChange: (qid: number, orderedIds: any) => void;
     matchingData: { questions: Answer[]; answers: Answer[] };
+    examId: number;
+    userId: number;
   }) => {
     const handleBookmarkClick = useCallback(() => {
       onToggleBookmark(question.question_id);
@@ -419,14 +424,18 @@ const QuestionItem = React.memo(
           />
         )}
 
-        {/* {question.que_type_id === 5 && (
+        {question.que_type_id === 5 && (
           <DragAndDropWrapper
+            questionId={question.question_id}
+            examId={examId}
+            userId={userId}
             answers={answers}
+            mode="exam"
             onOrderChange={(orderedIds) =>
               onDragDropChange(question.question_id, orderedIds)
             }
           />
-        )} */}
+        )}
 
         {question.que_type_id === 6 && (
           <MatchingByLineWrapper

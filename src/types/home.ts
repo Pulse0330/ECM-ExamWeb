@@ -25,6 +25,7 @@ export interface Banner {
   descr: string;
   filename: string;
   url: string;
+  id: string;
 }
 
 // Сургалтын төлөвлөгөө (Course/Plan)

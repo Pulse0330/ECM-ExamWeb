@@ -214,9 +214,13 @@ export default function SorilPage() {
   );
 
   const handleJumpToQuestion = useCallback((qid: number) => {
-    document
-      .getElementById(`question-container-${qid}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const element = document.getElementById(`question-container-${qid}`);
+    if (element) {
+      const yOffset = -80; // Mobile дээр header-ийг тооцож
+      const y =
+        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
   }, []);
 
   const toggleBookmark = useCallback((qid: number) => {
@@ -257,30 +261,40 @@ export default function SorilPage() {
     const actualQuestionCount = displayQuestions.length;
 
     return (
-      <div className="mb-4 sm:mb-6 p-3 sm:p-4 rounded border border-border">
+      <div className="mb-4 sm:mb-6 p-3 sm:p-4 rounded border border-border bg-card">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div className="flex-1">
             <h1 className="text-xl sm:text-2xl font-bold mb-2">{info.title}</h1>
             {info.descr && (
-              <p className="mb-2 text-sm sm:text-base">{info.descr}</p>
+              <p className="mb-2 text-sm sm:text-base text-muted-foreground">
+                {info.descr}
+              </p>
             )}
             {info.help && (
-              <p className="text-xs sm:text-sm mb-2">{info.help}</p>
+              <p className="text-xs sm:text-sm mb-2 text-muted-foreground">
+                {info.help}
+              </p>
             )}
             <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
-              <div>Хугацаа: {info.minut} минут</div>
+              <div>
+                Хугацаа: <span className="font-semibold">{info.minut}</span>{" "}
+                минут
+              </div>
               <div>
                 Асуулт тоо:{" "}
-                <span className="font-bold text-blue-600">
+                <span className="font-bold text-primary">
                   {actualQuestionCount}
                 </span>
                 {actualQuestionCount < info.que_cnt && (
-                  <span className="text-gray-500"> / {info.que_cnt}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    / {info.que_cnt}
+                  </span>
                 )}
               </div>
-              <div>Төрөл: {info.exam_type_name}</div>
-              <div className="hidden sm:block">
-                Эхлэх цаг: {new Date(info.end_time).toLocaleString()}
+              <div>
+                Төрөл:{" "}
+                <span className="font-semibold">{info.exam_type_name}</span>
               </div>
             </div>
           </div>
@@ -290,15 +304,50 @@ export default function SorilPage() {
   }, [examInfo, displayQuestions.length]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 p-2 sm:p-4">
-      <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
-        <MiniMap
-          questions={displayQuestions}
-          choosedAnswers={selectedAnswers as Record<number, number>}
-          bookmarks={bookmarks}
-          onJump={handleJumpToQuestion}
-        />
-        <div className="mt-4">
+    <div className="min-h-screen pb-20 lg:pb-4">
+      {/* Mobile дээр дээд хэсэгт MiniMap болон Timer */}
+      <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b p-2 space-y-2">
+        <div className="flex gap-2 items-center">
+          <div className="flex-1">
+            <MiniMap
+              questions={displayQuestions}
+              choosedAnswers={selectedAnswers as Record<number, number>}
+              bookmarks={bookmarks}
+              onJump={handleJumpToQuestion}
+            />
+          </div>
+          {examInfo.length > 0 && (
+            <div className="flex-shrink-0">
+              <ITimer
+                durationMinutes={examInfo[0].minut}
+                examName={examInfo[0].title}
+                startTime={new Date()}
+              />
+            </div>
+          )}
+        </div>
+        {examInfo.length > 0 && (
+          <SubmitExamButtonWithDialog
+            userId={Number(userId)}
+            startEid={examInfo[0].start_eid}
+            examTime={examInfo[0].minut || 0}
+            examInfo={examInfo[0]}
+            totalQuestions={displayQuestions.length}
+            answeredQuestions={answeredQuestionsCount}
+          />
+        )}
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="flex flex-col lg:flex-row gap-4 p-2 sm:p-4">
+        {/* Left Sidebar - Desktop only */}
+        <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start space-y-4">
+          <MiniMap
+            questions={displayQuestions}
+            choosedAnswers={selectedAnswers as Record<number, number>}
+            bookmarks={bookmarks}
+            onJump={handleJumpToQuestion}
+          />
           {examInfo.length > 0 && (
             <SubmitExamButtonWithDialog
               userId={Number(userId)}
@@ -310,51 +359,43 @@ export default function SorilPage() {
             />
           )}
         </div>
-      </div>
 
-      <div className="w-full lg:w-4/6 space-y-4 sm:space-y-6">
-        {examInfoDisplay}
+        {/* Main Content */}
+        <div className="w-full lg:w-4/6 space-y-4 sm:space-y-6">
+          {examInfoDisplay}
 
-        {displayQuestions.map((question) => (
-          <QuestionItem
-            key={question.question_id}
-            question={question}
-            answers={getAnswersForQuestion(question.question_id)}
-            selectedAnswer={selectedAnswers[question.question_id]}
-            isBookmarked={bookmarks.includes(question.question_id)}
-            onToggleBookmark={toggleBookmark}
-            onSingleAnswerChange={handleSingleAnswerChange}
-            onMultiAnswerChange={handleMultiAnswerChange}
-            onFillInTheBlankChange={handleFillInTheBlankChange}
-            onDragDropChange={handleDragDropChange}
-            matchingData={matchingData}
-            examId={Number(id)}
-            userId={Number(userId)}
-            saveAnswerToAPI={saveAnswerToAPI}
-            debouncedSaveToAPI={debouncedSaveToAPI}
-          />
-        ))}
-      </div>
-
-      <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
-        {examInfo.length > 0 && (
-          <ITimer
-            durationMinutes={examInfo[0].minut}
-            examName={examInfo[0].title}
-            startTime={new Date()}
-          />
-        )}
-      </div>
-
-      {examInfo.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-2 shadow-lg z-50">
-          <ITimer
-            durationMinutes={examInfo[0].minut}
-            examName={examInfo[0].title}
-            startTime={new Date()}
-          />
+          {displayQuestions.map((question) => (
+            <QuestionItem
+              key={question.question_id}
+              question={question}
+              answers={getAnswersForQuestion(question.question_id)}
+              selectedAnswer={selectedAnswers[question.question_id]}
+              isBookmarked={bookmarks.includes(question.question_id)}
+              onToggleBookmark={toggleBookmark}
+              onSingleAnswerChange={handleSingleAnswerChange}
+              onMultiAnswerChange={handleMultiAnswerChange}
+              onFillInTheBlankChange={handleFillInTheBlankChange}
+              onDragDropChange={handleDragDropChange}
+              matchingData={matchingData}
+              examId={Number(id)}
+              userId={Number(userId)}
+              saveAnswerToAPI={saveAnswerToAPI}
+              debouncedSaveToAPI={debouncedSaveToAPI}
+            />
+          ))}
         </div>
-      )}
+
+        {/* Right Sidebar - Desktop only */}
+        <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
+          {examInfo.length > 0 && (
+            <ITimer
+              durationMinutes={examInfo[0].minut}
+              examName={examInfo[0].title}
+              startTime={new Date()}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -406,23 +447,24 @@ const QuestionItem = React.memo(
     return (
       <div
         id={`question-container-${question.question_id}`}
-        className="mb-4 sm:mb-6 p-3 sm:p-4 border rounded shadow-sm"
+        className="mb-4 sm:mb-6 p-3 sm:p-4 border rounded-lg shadow-sm bg-card scroll-mt-20 lg:scroll-mt-4"
       >
-        <h2 className="flex justify-between items-start font-semibold mb-2 text-sm sm:text-base">
+        <h2 className="flex justify-between items-start font-semibold mb-3 text-sm sm:text-base">
           <div className="flex-1 min-w-0 pr-2">
             <div dangerouslySetInnerHTML={{ __html: question.question_name }} />
           </div>
 
           <button
             onClick={handleBookmarkClick}
-            className={`ml-2 p-1 rounded flex-shrink-0 ${
+            className={`ml-2 p-2 rounded-md flex-shrink-0 transition-all active:scale-95 ${
               isBookmarked
-                ? "bg-yellow-400 text-white"
-                : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                ? "bg-yellow-400 text-white hover:bg-yellow-500"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
             title={isBookmarked ? "Bookmark хасах" : "Bookmark хийх"}
+            type="button"
           >
-            <Flag size={14} />
+            <Flag size={16} className={isBookmarked ? "fill-current" : ""} />
           </button>
         </h2>
 
@@ -466,6 +508,7 @@ const QuestionItem = React.memo(
             questionId={question.question_id}
             examId={examId}
             userId={userId}
+            mode="exam"
             onOrderChange={(orderedIds) => {
               onDragDropChange(question.question_id, orderedIds);
               saveAnswerToAPI(

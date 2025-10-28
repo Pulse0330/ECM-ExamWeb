@@ -84,7 +84,7 @@ export default function ExamListPage() {
   const clearSearch = () => setSearchTerm("");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 py-6 sm:py-8 lg:py-10 px-4">
+    <div className="min-h-screen bg-gradient-to-br py-6 sm:py-8 lg:py-10 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-6 sm:mb-8 lg:mb-10">

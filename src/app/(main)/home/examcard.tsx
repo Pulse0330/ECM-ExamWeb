@@ -2,16 +2,15 @@
 
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  BookOpen,
-  Clock,
-  Calendar,
-  Hourglass,
-  DollarSign,
-} from "lucide-react";
+import { ArrowRight, BookOpen, Clock, Calendar, Hourglass } from "lucide-react";
 import { ExamData } from "@/types/examlists";
 import { cn } from "@/lib/utils";
+import { Poppins } from "next/font/google";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 interface ExamCardProps {
   exam: ExamData;
@@ -25,14 +24,14 @@ const getCardStyle = (
   isFinished: boolean
 ) => {
   if (isPayable)
-    return "border-red-500/70 shadow-xl shadow-red-500/30 bg-white dark:bg-gray-950/50 dark:border-red-700/50";
+    return "border-red-400/50 shadow-lg shadow-red-200/40 bg-gradient-to-b from-white to-red-50 dark:from-gray-950 dark:to-red-950/10";
   if (isActive)
-    return "border-green-500/70 shadow-2xl shadow-green-500/30 ring-2 ring-green-500/20 bg-white dark:bg-gray-950/50 dark:border-green-700/50";
+    return "border-green-400/50 shadow-lg shadow-green-200/40 bg-gradient-to-b from-white to-green-50 dark:from-gray-950 dark:to-green-950/10";
   if (isUpcoming)
-    return "border-blue-400/70 shadow-lg shadow-blue-500/10 bg-white dark:bg-gray-950/50 dark:border-blue-700/50";
+    return "border-blue-400/50 shadow-lg shadow-blue-200/40 bg-gradient-to-b from-white to-blue-50 dark:from-gray-950 dark:to-blue-950/10";
   if (isFinished)
-    return "border-gray-400/70 shadow-lg shadow-gray-500/10 bg-gray-50 dark:bg-gray-900/50 dark:border-gray-700/50";
-  return "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900";
+    return "border-gray-400/50 shadow-md shadow-gray-200/20 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950";
+  return "border-gray-300 bg-white dark:bg-gray-900";
 };
 
 const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
@@ -53,7 +52,7 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
     const isUpcoming = now < startTime;
     const isFinished = now > endTime;
     const isActive = !isUpcoming && !isFinished && !isPayable;
-    const isLocked = isUpcoming || isPayable; // isFinished-ийг хасав
+    const isLocked = isUpcoming || isPayable;
     return {
       isPurchased,
       isPayable,
@@ -64,24 +63,18 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
     };
   }, [exam.ispurchased, exam.ispaydescr, now, startTime, endTime]);
 
-  const { isPurchased, isPayable, isUpcoming, isActive, isLocked, isFinished } =
-    examStatus;
+  const { isPayable, isUpcoming, isActive, isFinished, isLocked } = examStatus;
 
   const countdownData = useMemo(() => {
     let statusText = "Дууссан";
     let statusBadgeClass = "bg-gray-500";
     let buttonText = "Үр дүн харах";
     let countdown = "Шалгалт дууссан";
-    let countdownClasses =
-      "text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400";
 
     if (isPayable) {
       statusText = "ТӨЛБӨР";
-      statusBadgeClass = "bg-red-600 animate-pulse";
+      statusBadgeClass = "bg-red-500 animate-pulse";
       buttonText = `Төлбөр төлөх (${exam.amount.toLocaleString()}₮)`;
-      countdown = "Төлбөр төлөгдөөгүй!";
-      countdownClasses =
-        "text-red-600 bg-red-100 dark:bg-red-900/30 border-red-400/50";
     } else if (isUpcoming) {
       const diff = startTime.getTime() - now.getTime();
       const minutes = Math.floor(diff / 60000);
@@ -90,8 +83,6 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       statusText = "УДАХГҮЙ";
       statusBadgeClass = "bg-blue-500";
       buttonText = "Хүлээгдэж байна";
-      countdownClasses =
-        "text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-blue-400/50";
     } else if (isActive) {
       const diff = endTime.getTime() - now.getTime();
       const minutes = Math.floor(diff / 60000);
@@ -100,24 +91,9 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       statusText = "LIVE";
       statusBadgeClass = "bg-green-600 animate-pulse";
       buttonText = "Шалгалт эхлүүлэх";
-      countdownClasses =
-        "text-green-600 bg-green-100 dark:bg-green-900/30 border-green-400/50";
-    } else if (isFinished) {
-      statusText = "ДУУССАН";
-      statusBadgeClass = "bg-gray-500";
-      buttonText = "Үр дүн харах";
-      countdown = "Шалгалт дууссан";
-      countdownClasses =
-        "text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400";
     }
 
-    return {
-      statusText,
-      statusBadgeClass,
-      buttonText,
-      countdown,
-      countdownClasses,
-    };
+    return { statusText, statusBadgeClass, buttonText, countdown };
   }, [
     isPayable,
     isUpcoming,
@@ -134,18 +110,10 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
     [isActive, isPayable, isUpcoming, isFinished]
   );
 
-  // Шалгалт эхлүүлэх эсвэл үр дүн харах функц
   const handleAction = () => {
-    if (isPayable) {
-      // Төлбөр төлөх хуудас руу
-      router.push(`/payment/${exam.exam_id}`);
-    } else if (isActive) {
-      // Шалгалт эхлүүлэх хуудас руу
-      router.push(`/exam/${exam.exam_id}`);
-    } else if (isFinished) {
-      // Үр дүн харах хуудас руу
-      router.push(`/result/${exam.exam_id}`);
-    }
+    if (isPayable) router.push(`/payment/${exam.exam_id}`);
+    else if (isActive) router.push(`/exam/${exam.exam_id}`);
+    else if (isFinished) router.push(`/result/${exam.exam_id}`);
   };
 
   return (
@@ -153,22 +121,21 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "relative overflow-hidden rounded-xl border-2 transition-all duration-300 flex flex-col h-full",
+        poppins.className,
+        "relative overflow-hidden rounded-2xl border transition-all duration-500 ease-out flex flex-col h-full transform",
         cardStyle,
-        // Идэвхтэй, төлбөртэй эсвэл дууссан бол cursor pointer
         (isActive || isPayable || isFinished) &&
-          "cursor-pointer hover:scale-[1.02]"
+          "cursor-pointer hover:-translate-y-1 hover:shadow-xl"
       )}
-      // Карт бүхэлдээ дээр дарахад шилжинэ
       onClick={isActive || isPayable || isFinished ? handleAction : undefined}
     >
-      <div className="p-5 flex flex-col flex-grow">
-        {/* Header & Status Badge */}
+      <div className="p-6 flex flex-col flex-grow">
+        {/* Header */}
         <div className="flex justify-between items-start mb-3">
           <h2
             title={exam.title}
             className={cn(
-              "text-lg md:text-xl font-extrabold leading-tight min-h-[2.5em] transition-all duration-300",
+              "text-lg md:text-xl font-bold leading-snug tracking-tight min-h-[2.5em] transition-all duration-300",
               isFinished
                 ? "text-gray-600 dark:text-gray-400"
                 : "text-gray-900 dark:text-gray-50",
@@ -179,7 +146,7 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
           </h2>
           <div
             className={cn(
-              "text-xs text-white font-bold px-3 py-1 rounded-full whitespace-nowrap uppercase",
+              "text-xs font-semibold px-3 py-1 rounded-full text-white shadow-sm",
               countdownData.statusBadgeClass
             )}
           >
@@ -187,87 +154,46 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
           </div>
         </div>
 
-        {/* Багш мэдээлэл */}
         {exam.teach_name && (
           <p
             className={cn(
-              "text-sm mb-3 flex items-center gap-2",
+              "text-sm mb-3 font-medium tracking-wide",
               isFinished
                 ? "text-gray-500 dark:text-gray-500"
                 : "text-gray-600 dark:text-gray-400"
             )}
           >
-            <span className="font-medium">Багш:</span> {exam.teach_name}
+            👨‍🏫 {exam.teach_name}
           </p>
         )}
 
-        {/* Core Details Grid */}
-        <div
-          className={cn(
-            "grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 mb-5",
-            isFinished
-              ? "text-gray-500 dark:text-gray-500"
-              : "text-gray-700 dark:text-gray-300"
-          )}
-        >
+        {/* Info grid */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-5 text-sm">
+          <DetailItem icon={<BookOpen />} label="Асуулт" value={exam.que_cnt} />
           <DetailItem
-            icon={<BookOpen size={16} className="text-indigo-500" />}
-            label="Асуулт"
-            value={exam.que_cnt}
-            isFinished={isFinished}
-          />
-          <DetailItem
-            icon={<Clock size={16} className="text-red-500" />}
+            icon={<Clock />}
             label="Хугацаа"
             value={`${exam.exam_minute} мин`}
-            isFinished={isFinished}
           />
           <DetailItem
-            icon={
-              <Calendar
-                size={16}
-                className="text-gray-500 dark:text-gray-400"
-              />
-            }
+            icon={<Calendar />}
             label="Эхлэх"
             value={startTime.toLocaleTimeString("mn-MN", {
               hour: "2-digit",
               minute: "2-digit",
             })}
-            isFinished={isFinished}
           />
           <DetailItem
-            icon={
-              <Hourglass
-                size={16}
-                className="text-gray-500 dark:text-gray-400"
-              />
-            }
+            icon={<Hourglass />}
             label="Дуусах"
             value={endTime.toLocaleTimeString("mn-MN", {
               hour: "2-digit",
               minute: "2-digit",
             })}
-            isFinished={isFinished}
           />
         </div>
 
-        {/* Үнийн мэдээлэл - Төлбөртэй бол */}
-        {isPayable && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                Төлбөр:
-              </span>
-              <span className="text-xl font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
-                <DollarSign size={18} />
-                {exam.amount.toLocaleString()}₮
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Action Button */}
+        {/* Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -275,18 +201,20 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
           }}
           disabled={isLocked}
           className={cn(
-            "w-full text-base font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg",
+            "w-full mt-auto text-base font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm",
             isActive
-              ? "bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 shadow-blue-500/50"
+              ? "bg-green-600 hover:bg-green-700 text-white"
               : isPayable
-              ? "bg-red-600 hover:bg-red-700 text-white dark:bg-red-500 dark:hover:bg-red-600 shadow-red-500/50"
+              ? "bg-red-600 hover:bg-red-700 text-white"
               : isFinished
-              ? "bg-gray-600 hover:bg-gray-700 text-white dark:bg-gray-500 dark:hover:bg-gray-600 shadow-gray-500/50"
-              : "bg-gray-300 cursor-not-allowed text-gray-700 dark:bg-gray-700 dark:text-gray-400"
+              ? "bg-gray-500 hover:bg-gray-600 text-white"
+              : "bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed"
           )}
         >
-          {countdownData.buttonText}{" "}
-          {(isActive || isPayable || isFinished) && <ArrowRight size={18} />}
+          {countdownData.buttonText}
+          {(isActive || isPayable || isFinished) && (
+            <ArrowRight size={18} className="ml-1" />
+          )}
         </button>
       </div>
     </div>
@@ -295,39 +223,22 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
 
 ExamCard.displayName = "ExamCard";
 
-export const DetailItem = React.memo(
+const DetailItem = React.memo(
   ({
     icon,
     label,
     value,
-    isFinished,
   }: {
     icon: React.ReactNode;
     label: string;
     value: string | number;
-    isFinished?: boolean;
   }) => (
-    <div className="flex items-center justify-between">
-      <div
-        className={cn(
-          "flex items-center gap-2 text-sm font-medium",
-          isFinished
-            ? "text-gray-500 dark:text-gray-500"
-            : "text-gray-600 dark:text-gray-300"
-        )}
-      >
-        {icon} {label}
+    <div className="flex items-center justify-between text-gray-700 dark:text-gray-300">
+      <div className="flex items-center gap-2">
+        <span className="opacity-70">{icon}</span>
+        <span className="font-medium">{label}</span>
       </div>
-      <span
-        className={cn(
-          "font-bold",
-          isFinished
-            ? "text-gray-600 dark:text-gray-500"
-            : "text-gray-900 dark:text-gray-50"
-        )}
-      >
-        {value}
-      </span>
+      <span className="font-semibold">{value}</span>
     </div>
   )
 );

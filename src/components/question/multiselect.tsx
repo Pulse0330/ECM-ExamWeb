@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,8 +24,9 @@ interface MultiSelectQuestionProps {
   questionImage?: string | null;
   answers: AnswerData[];
   mode: "exam" | "review";
-  selectedAnswers: number[]; //
+  selectedAnswers?: number[]; // ✅ props-аас ирдэг
   onAnswerChange?: (questionId: number, answerIds: number[]) => void;
+  readOnly?: boolean; // ✅ review mode-д ашиглана
 }
 
 const isValidImageUrl = (url: string | null | undefined): boolean => {
@@ -39,10 +40,18 @@ export default function MultiSelectQuestion({
   questionImage,
   answers,
   mode,
+  selectedAnswers: selectedAnswersProp = [],
   onAnswerChange,
+  readOnly = false,
 }: MultiSelectQuestionProps) {
-  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
-  const isReviewMode = mode === "review";
+  const [selectedAnswers, setSelectedAnswers] =
+    useState<number[]>(selectedAnswersProp);
+  const isReviewMode = mode === "review" || readOnly;
+
+  // Props-аас ирсэн сонголтыг update хийх
+  useEffect(() => {
+    setSelectedAnswers(selectedAnswersProp);
+  }, [selectedAnswersProp]);
 
   const handleToggle = useCallback(
     (answerId: number) => {
@@ -57,8 +66,6 @@ export default function MultiSelectQuestion({
       if (onAnswerChange) {
         onAnswerChange(questionId, newSelected);
       }
-
-      console.log(`Question ${questionId}: Selected answers:`, newSelected);
     },
     [questionId, selectedAnswers, isReviewMode, onAnswerChange]
   );
@@ -68,37 +75,36 @@ export default function MultiSelectQuestion({
   const renderQuestionContent = () => {
     const imageUrl = isValidImageUrl(questionImage) ? questionImage : null;
 
-    if (imageUrl) {
-      return (
-        <Dialog>
-          <DialogTrigger asChild>
-            <div className="relative mb-4 cursor-pointer hover:opacity-90 transition-opacity border rounded-md overflow-hidden group">
-              <img
-                src={imageUrl}
-                alt={questionText || "Question"}
-                className="w-full h-auto object-contain bg-gray-50 max-h-[300px]"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+    if (!imageUrl) return null;
+
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <div className="relative mb-4 cursor-pointer hover:opacity-90 transition-opacity border rounded-md overflow-hidden group">
+            <img
+              src={imageUrl}
+              alt={questionText || "Question"}
+              className="w-full h-auto object-contain bg-gray-50 max-h-[300px]"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+              <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          </DialogTrigger>
-          <DialogContent className="max-w-[90vw] max-h-[90vh]">
-            <VisuallyHidden>
-              <DialogTitle>Асуултын зураг</DialogTitle>
-            </VisuallyHidden>
-            <div className="relative w-full h-[80vh] flex items-center justify-center">
-              <img
-                src={imageUrl}
-                alt={questionText || "Question"}
-                className="max-w-full max-h-full object-contain"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-    return null;
+          </div>
+        </DialogTrigger>
+        <DialogContent className="max-w-[90vw] max-h-[90vh]">
+          <VisuallyHidden>
+            <DialogTitle>Асуултын зураг</DialogTitle>
+          </VisuallyHidden>
+          <div className="relative w-full h-[80vh] flex items-center justify-center">
+            <img
+              src={imageUrl}
+              alt={questionText || "Question"}
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   const renderOptionContent = (option: AnswerData) => {

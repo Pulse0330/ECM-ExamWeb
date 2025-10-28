@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,29 +10,23 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-interface ExamProctorProps {
+// -----------------------
+// ExamProctor (desktop + mobile friendly)
+export const ExamProctor: React.FC<{
   userId: string;
   onSubmit: () => void;
   onLogout?: () => void;
   maxSwitch?: number;
-}
-
-export const ExamProctor: React.FC<ExamProctorProps> = ({
-  userId,
-  onSubmit,
-  onLogout,
-  maxSwitch = 3,
-}) => {
+}> = ({ userId, onSubmit, onLogout, maxSwitch = 3 }) => {
   const [switchCount, setSwitchCount] = useState(0);
   const [blocked, setBlocked] = useState(false);
   const [dialogMessage, setDialogMessage] = useState<string | null>(null);
   const [blackScreen, setBlackScreen] = useState(false);
 
   const blockedRef = useRef(false);
-  const switchLockRef = useRef(false); // Давхардлыг сэргийлнэ
+  const switchLockRef = useRef(false);
 
-  // tab switch / blur / fullscreen exit-г нэг function-д нэгтгэх
-  const handleSwitch = () => {
+  const handleSwitch = (message?: string) => {
     if (blockedRef.current || switchLockRef.current) return;
     switchLockRef.current = true;
 
@@ -44,55 +38,48 @@ export const ExamProctor: React.FC<ExamProctorProps> = ({
         setDialogMessage("🚫 Та 3 удаа tab сольсон тул шалгалт хаагдана.");
         setBlackScreen(true);
 
-        // Автомат submit + logout
         setTimeout(() => {
           onSubmit();
           onLogout?.();
-        }, 500); // Богино хугацаагаар харуулж байгаад submit
+        }, 500);
       } else {
-        setDialogMessage(`⚠️ Tab сольсон байна (${next}/${maxSwitch})`);
+        setDialogMessage(
+          message || `⚠️ Tab / focus loss илэрлээ (${next}/${maxSwitch})`
+        );
         setBlackScreen(true);
       }
       return next;
     });
 
     setTimeout(() => {
-      switchLockRef.current = false; // lock-г тайлах
-      if (!blockedRef.current) setBlackScreen(false); // warning black screen-г арилгах
-    }, 2000); // 2 секунд харуулах
+      switchLockRef.current = false;
+      if (!blockedRef.current) setBlackScreen(false);
+    }, 2000);
   };
 
   useEffect(() => {
-    const handleBlur = () => handleSwitch();
-    const handleVisibilityChange = () => {
-      if (document.hidden) handleSwitch();
-    };
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) handleSwitch();
-    };
+    if (typeof window === "undefined") return;
+
+    // Desktop + Mobile detection
+    const handleBlurOrHide = () =>
+      handleSwitch("⚠️ Tab / app switch / focus loss илэрлээ");
+    const handleOrientationChange = () =>
+      handleSwitch("⚠️ Screen orientation change илэрлээ");
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "PrintScreen") {
-        setDialogMessage("📷 Screenshot хийх оролдлого илэрлээ!");
-        setBlackScreen(true);
-        setTimeout(() => setBlackScreen(false), 2000);
+        handleSwitch("📷 Screenshot desktop-д илэрлээ");
       }
     };
 
-    // Event listener-үүд
-    window.addEventListener("blur", handleBlur, { passive: true });
-    document.addEventListener("visibilitychange", handleVisibilityChange, {
-      passive: true,
-    });
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    window.addEventListener("keydown", handleKeyDown, { passive: true });
-
-    // Fullscreen lock
-    document.documentElement.requestFullscreen?.();
+    window.addEventListener("blur", handleBlurOrHide);
+    document.addEventListener("visibilitychange", handleBlurOrHide);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("blur", handleBlurOrHide);
+      document.removeEventListener("visibilitychange", handleBlurOrHide);
+      window.removeEventListener("orientationchange", handleOrientationChange);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
@@ -104,7 +91,6 @@ export const ExamProctor: React.FC<ExamProctorProps> = ({
 
   return (
     <>
-      {/* Black screen overlay */}
       {blackScreen && (
         <div
           style={{
@@ -129,10 +115,9 @@ export const ExamProctor: React.FC<ExamProctorProps> = ({
         </div>
       )}
 
-      {/* Tab switch counter */}
       <div className="p-4 border rounded-md shadow-md mb-4 bg-card">
         <p className="font-semibold text-sm">
-          Tab сольсон тоо:{" "}
+          Tab / focus loss тоо:{" "}
           <span
             className={
               switchCount >= maxSwitch - 1 ? "text-red-600 font-bold" : ""
@@ -147,7 +132,6 @@ export const ExamProctor: React.FC<ExamProctorProps> = ({
         )}
       </div>
 
-      {/* Dialog */}
       <Dialog open={!!dialogMessage}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -162,3 +146,55 @@ export const ExamProctor: React.FC<ExamProctorProps> = ({
     </>
   );
 };
+
+// -----------------------
+// Тест шалгалтын хуудсаг
+export default function TestExamPage() {
+  const [submitted, setSubmitted] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
+
+  const handleSubmit = () => {
+    setShowDialog(true);
+    setSubmitted(true);
+  };
+
+  const handleLogout = () => {
+    alert("Logout triggered (тестээр)");
+  };
+
+  return (
+    <div className="p-4 max-w-3xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold mb-4">
+        Тест шалгалт (Desktop + Mobile)
+      </h1>
+
+      <ExamProctor
+        userId="12345"
+        onSubmit={handleSubmit}
+        onLogout={handleLogout}
+      />
+
+      <Button onClick={handleSubmit} size="lg" className="w-full">
+        Шалгалт дуусгах (тестээр)
+      </Button>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Шалгалт дууссан (тест)</DialogTitle>
+            <p>Шалгалт амжилттай дууслаа. (Тестийн хувилбар)</p>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowDialog(false)}>Хаах</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {submitted && (
+        <p className="mt-4 text-green-600 font-semibold">
+          Шалгалт дуусгах үйлдэл дууслаа (тест)
+        </p>
+      )}
+    </div>
+  );
+}

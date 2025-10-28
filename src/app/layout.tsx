@@ -8,7 +8,7 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="mn" suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
       </body>
