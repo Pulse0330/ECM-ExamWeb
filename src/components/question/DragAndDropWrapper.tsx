@@ -55,7 +55,7 @@ export default function DragAndDropWrapper({
   );
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm bg-white space-y-3">
+    <div className="p-4 border rounded-lg shadow-sm  space-y-3">
       <h3 className="font-semibold text-base sm:text-lg">
         {mode === "exam" ? "Зөв дараалалд оруулна уу:" : "Таны өгсөн дараалал:"}
       </h3>

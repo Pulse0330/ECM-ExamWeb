@@ -17,16 +17,17 @@ import MatchingByLineWrapper from "@/components/question/matchingWrapper";
 import MiniMap from "@/app/exam/minimap";
 import ITimer from "@/app/exam/itimer";
 import SubmitExamButtonWithDialog from "@/components/question/Submit";
-import { Flag } from "lucide-react";
+import { Flag, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { getExamById, saveExamAnswer } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import type { ApiExamResponse, Question, Answer } from "@/types/exam";
+import { Button } from "@/components/ui/button";
 
 type SelectedAnswersType = {
   [key: number]: number | number[] | string | Record<string, string> | null;
 };
 
-export default function SorilPage() {
+export default function ExamPage() {
   const { id } = useParams();
   const searchParams = useSearchParams();
   const userId = useAuthStore((s) => s.userId);
@@ -36,7 +37,10 @@ export default function SorilPage() {
     {}
   );
   const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const saveQueueRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const questionContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: examData } = useQuery<ApiExamResponse>({
     queryKey: ["exam", userId, id],
@@ -56,6 +60,25 @@ export default function SorilPage() {
       setSelectedAnswers(prevAnswers);
     }
   }, [examData?.ChoosedAnswer]);
+
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setShowScrollTop(window.scrollY > 300);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const questions = useMemo(
     () => examData?.Questions || [],
@@ -138,14 +161,8 @@ export default function SorilPage() {
           answerText,
           1
         );
-
-        console.log("✅ Answer saved successfully for question:", questionId);
       } catch (error) {
-        console.error("❌ Error saving answer:", {
-          questionId,
-          queTypeId,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        console.error("❌ Error saving answer:", error);
       }
     },
     [userId, id]
@@ -159,7 +176,7 @@ export default function SorilPage() {
       const timeout = setTimeout(() => {
         saveAnswerToAPI(questionId, answerId, queTypeId);
         saveQueueRef.current.delete(questionId);
-      }, 1500);
+      }, 800);
 
       saveQueueRef.current.set(questionId, timeout);
     },
@@ -204,23 +221,12 @@ export default function SorilPage() {
     [questions, saveAnswerToAPI]
   );
 
-  const handleMatchingChange = useCallback(
-    (qid: number, matches: any) => {
-      setSelectedAnswers((prev) => ({ ...prev, [qid]: matches }));
-      const question = questions.find((q) => q.question_id === qid);
-      if (question) saveAnswerToAPI(qid, matches, question.que_type_id);
-    },
-    [questions, saveAnswerToAPI]
-  );
-
-  const handleJumpToQuestion = useCallback((qid: number) => {
-    const element = document.getElementById(`question-container-${qid}`);
-    if (element) {
-      const yOffset = -80; // Mobile дээр header-ийг тооцож
-      const y =
-        element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: "smooth" });
+  const handleJumpToQuestion = useCallback((index: number) => {
+    setCurrentQuestionIndex(index);
+    if (questionContainerRef.current) {
+      questionContainerRef.current.scrollTop = 0;
     }
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
   const toggleBookmark = useCallback((qid: number) => {
@@ -229,19 +235,24 @@ export default function SorilPage() {
     );
   }, []);
 
+  const goToNextQuestion = useCallback(() => {
+    if (currentQuestionIndex < displayQuestions.length - 1) {
+      handleJumpToQuestion(currentQuestionIndex + 1);
+    }
+  }, [currentQuestionIndex, displayQuestions.length, handleJumpToQuestion]);
+
+  const goToPreviousQuestion = useCallback(() => {
+    if (currentQuestionIndex > 0) {
+      handleJumpToQuestion(currentQuestionIndex - 1);
+    }
+  }, [currentQuestionIndex, handleJumpToQuestion]);
+
   useEffect(() => {
     return () => {
-      saveQueueRef.current.forEach((timeout, questionId) => {
-        clearTimeout(timeout);
-        const question = questions.find((q) => q.question_id === questionId);
-        const answer = selectedAnswers[questionId];
-        if (question && answer !== null && answer !== undefined) {
-          saveAnswerToAPI(questionId, answer, question.que_type_id);
-        }
-      });
+      saveQueueRef.current.forEach((timeout) => clearTimeout(timeout));
       saveQueueRef.current.clear();
     };
-  }, [questions, selectedAnswers, saveAnswerToAPI]);
+  }, []);
 
   const answeredQuestionsCount = useMemo(() => {
     return Object.keys(selectedAnswers).filter((key) => {
@@ -254,49 +265,39 @@ export default function SorilPage() {
     }).length;
   }, [selectedAnswers]);
 
-  const examInfoDisplay = useMemo(() => {
-    if (examInfo.length === 0) return null;
+  const currentQuestion = displayQuestions[currentQuestionIndex];
+  const isCurrentAnswered =
+    currentQuestion && !!selectedAnswers[currentQuestion.question_id];
 
+  const examInfoCard = useMemo(() => {
+    if (examInfo.length === 0) return null;
     const info = examInfo[0];
-    const actualQuestionCount = displayQuestions.length;
 
     return (
-      <div className="mb-4 sm:mb-6 p-3 sm:p-4 rounded border border-border bg-card">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold mb-2">{info.title}</h1>
-            {info.descr && (
-              <p className="mb-2 text-sm sm:text-base text-muted-foreground">
-                {info.descr}
-              </p>
-            )}
-            {info.help && (
-              <p className="text-xs sm:text-sm mb-2 text-muted-foreground">
-                {info.help}
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
-              <div>
-                Хугацаа: <span className="font-semibold">{info.minut}</span>{" "}
-                минут
-              </div>
-              <div>
-                Асуулт тоо:{" "}
-                <span className="font-bold text-primary">
-                  {actualQuestionCount}
-                </span>
-                {actualQuestionCount < info.que_cnt && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    / {info.que_cnt}
-                  </span>
-                )}
-              </div>
-              <div>
-                Төрөл:{" "}
-                <span className="font-semibold">{info.exam_type_name}</span>
-              </div>
-            </div>
+      <div className="p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 shadow-sm">
+        <h1 className="text-lg sm:text-xl font-bold mb-2 line-clamp-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          {info.title}
+        </h1>
+        {info.descr && (
+          <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">
+            {info.descr}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
+          <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
+            <span className="mr-1">⏱️</span>
+            <span className="font-semibold">{info.minut}</span> мин
+          </div>
+          <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
+            <span className="mr-1">📝</span>
+            <span className="font-semibold">
+              {displayQuestions.length}
+            </span>{" "}
+            асуулт
+          </div>
+          <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
+            <span className="mr-1">📊</span>
+            <span className="font-semibold">{info.exam_type_name}</span>
           </div>
         </div>
       </div>
@@ -304,70 +305,100 @@ export default function SorilPage() {
   }, [examInfo, displayQuestions.length]);
 
   return (
-    <div className="min-h-screen pb-20 lg:pb-4">
-      {/* Mobile дээр дээд хэсэгт MiniMap болон Timer */}
-      <div className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b p-2 space-y-2">
-        <div className="flex gap-2 items-center">
-          <div className="flex-1">
-            <MiniMap
-              questions={displayQuestions}
-              choosedAnswers={selectedAnswers as Record<number, number>}
-              bookmarks={bookmarks}
-              onJump={handleJumpToQuestion}
-            />
-          </div>
-          {examInfo.length > 0 && (
-            <div className="flex-shrink-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 pb-16 lg:pb-0">
+      {/* Mobile: Top Header - ШИНЭЧИЛСЭН */}
+      <header className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b shadow-sm">
+        <div className="px-3 py-2">
+          {/* Timer + Submit Row */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            {examInfo.length > 0 && (
               <ITimer
                 durationMinutes={examInfo[0].minut}
                 examName={examInfo[0].title}
                 startTime={new Date()}
               />
+            )}
+
+            {examInfo.length > 0 && (
+              <SubmitExamButtonWithDialog
+                userId={Number(userId)}
+                startEid={examInfo[0].start_eid}
+                examTime={examInfo[0].minut || 0}
+                examInfo={examInfo[0]}
+                totalQuestions={displayQuestions.length}
+                answeredQuestions={answeredQuestionsCount}
+              />
+            )}
+          </div>
+
+          {/* Progress Bar */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold">
+                Асуулт {currentQuestionIndex + 1}/{displayQuestions.length}
+              </span>
+              <span className="text-muted-foreground">
+                {answeredQuestionsCount} хариулсан
+              </span>
             </div>
-          )}
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-200 ease-out"
+                style={{
+                  width: `${
+                    ((currentQuestionIndex + 1) / displayQuestions.length) * 100
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
         </div>
-        {examInfo.length > 0 && (
-          <SubmitExamButtonWithDialog
-            userId={Number(userId)}
-            startEid={examInfo[0].start_eid}
-            examTime={examInfo[0].minut || 0}
-            examInfo={examInfo[0]}
-            totalQuestions={displayQuestions.length}
-            answeredQuestions={answeredQuestionsCount}
-          />
-        )}
-      </div>
+      </header>
 
       {/* Desktop Layout */}
-      <div className="flex flex-col lg:flex-row gap-4 p-2 sm:p-4">
-        {/* Left Sidebar - Desktop only */}
-        <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start space-y-4">
-          <MiniMap
-            questions={displayQuestions}
-            choosedAnswers={selectedAnswers as Record<number, number>}
-            bookmarks={bookmarks}
-            onJump={handleJumpToQuestion}
-          />
-          {examInfo.length > 0 && (
-            <SubmitExamButtonWithDialog
-              userId={Number(userId)}
-              startEid={examInfo[0].start_eid}
-              examTime={examInfo[0].minut || 0}
-              examInfo={examInfo[0]}
-              totalQuestions={displayQuestions.length}
-              answeredQuestions={answeredQuestionsCount}
+      <div className="hidden lg:flex gap-4 p-4 max-w-[1800px] mx-auto">
+        <aside className="w-64 flex-shrink-0 space-y-4">
+          <div className="sticky top-4 space-y-4">
+            <MiniMap
+              questions={displayQuestions}
+              choosedAnswers={selectedAnswers as Record<number, number>}
+              bookmarks={bookmarks}
+              currentQuestionIndex={currentQuestionIndex}
+              onJump={(qid) => {
+                const element = document.getElementById(
+                  `question-container-${qid}`
+                );
+                if (element) {
+                  const yOffset = -80;
+                  const y =
+                    element.getBoundingClientRect().top +
+                    window.pageYOffset +
+                    yOffset;
+                  window.scrollTo({ top: y, behavior: "smooth" });
+                }
+              }}
             />
-          )}
-        </div>
+            {examInfo.length > 0 && (
+              <SubmitExamButtonWithDialog
+                userId={Number(userId)}
+                startEid={examInfo[0].start_eid}
+                examTime={examInfo[0].minut || 0}
+                examInfo={examInfo[0]}
+                totalQuestions={displayQuestions.length}
+                answeredQuestions={answeredQuestionsCount}
+              />
+            )}
+          </div>
+        </aside>
 
-        {/* Main Content */}
-        <div className="w-full lg:w-4/6 space-y-4 sm:space-y-6">
-          {examInfoDisplay}
+        <main className="flex-1 min-w-0 space-y-4">
+          {examInfoCard}
 
-          {displayQuestions.map((question) => (
+          {displayQuestions.map((question, index) => (
             <QuestionItem
               key={question.question_id}
               question={question}
+              questionNumber={index + 1}
               answers={getAnswersForQuestion(question.question_id)}
               selectedAnswer={selectedAnswers[question.question_id]}
               isBookmarked={bookmarks.includes(question.question_id)}
@@ -383,19 +414,106 @@ export default function SorilPage() {
               debouncedSaveToAPI={debouncedSaveToAPI}
             />
           ))}
-        </div>
+        </main>
 
-        {/* Right Sidebar - Desktop only */}
-        <div className="hidden lg:block lg:w-1/6 h-fit sticky top-4 self-start">
-          {examInfo.length > 0 && (
-            <ITimer
-              durationMinutes={examInfo[0].minut}
-              examName={examInfo[0].title}
-              startTime={new Date()}
-            />
+        <aside className="w-64 flex-shrink-0">
+          <div className="sticky top-4">
+            {examInfo.length > 0 && (
+              <ITimer
+                durationMinutes={examInfo[0].minut}
+                examName={examInfo[0].title}
+                startTime={new Date()}
+              />
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* Mobile: Layout - ШИНЭЧИЛСЭН */}
+      <div className="md:hidden px-3 py-3" ref={questionContainerRef}>
+        <div className="space-y-3">
+          {examInfoCard}
+
+          {/* Question Card */}
+          {currentQuestion && (
+            <div className="bg-white dark:bg-slate-900 rounded-xl border shadow-md">
+              <QuestionItem
+                question={currentQuestion}
+                questionNumber={currentQuestionIndex + 1}
+                answers={getAnswersForQuestion(currentQuestion.question_id)}
+                selectedAnswer={selectedAnswers[currentQuestion.question_id]}
+                isBookmarked={bookmarks.includes(currentQuestion.question_id)}
+                onToggleBookmark={toggleBookmark}
+                onSingleAnswerChange={handleSingleAnswerChange}
+                onMultiAnswerChange={handleMultiAnswerChange}
+                onFillInTheBlankChange={handleFillInTheBlankChange}
+                onDragDropChange={handleDragDropChange}
+                matchingData={matchingData}
+                examId={Number(id)}
+                userId={Number(userId)}
+                saveAnswerToAPI={saveAnswerToAPI}
+                debouncedSaveToAPI={debouncedSaveToAPI}
+                isMobile={true}
+              />
+            </div>
           )}
+
+          {/* MiniMap доор */}
+          <MiniMap
+            questions={displayQuestions}
+            choosedAnswers={selectedAnswers as Record<number, number>}
+            bookmarks={bookmarks}
+            currentQuestionIndex={currentQuestionIndex}
+            onJump={(qid) => {
+              const index = displayQuestions.findIndex(
+                (q) => q.question_id === qid
+              );
+              if (index >= 0) handleJumpToQuestion(index);
+            }}
+          />
         </div>
       </div>
+
+      {/* Mobile: Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t shadow-lg">
+        <div className="px-3 py-2.5 flex gap-2">
+          <Button
+            variant="outline"
+            onClick={goToPreviousQuestion}
+            disabled={currentQuestionIndex === 0}
+            className="flex-1 h-11 font-medium disabled:opacity-40"
+          >
+            <ChevronLeft size={18} className="mr-1" />
+            Өмнөх
+          </Button>
+
+          <Button
+            onClick={goToNextQuestion}
+            disabled={currentQuestionIndex === displayQuestions.length - 1}
+            className={`flex-1 h-11 font-medium transition-all ${
+              isCurrentAnswered
+                ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                : "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-800  "
+            }`}
+          >
+            {currentQuestionIndex === displayQuestions.length - 1
+              ? "🏁 Дуусгах"
+              : "Дараах"}
+            <ChevronRight size={18} className="ml-1" />
+          </Button>
+        </div>
+      </nav>
+
+      {/* Scroll to Top FAB */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="md:hidden fixed bottom-[72px] right-4 z-30 p-2.5 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 rounded-full shadow-xl active:scale-95 transition-transform"
+          aria-label="Дээш гарах"
+        >
+          <ChevronUp size={20} />
+        </button>
+      )}
     </div>
   );
 }
@@ -403,6 +521,7 @@ export default function SorilPage() {
 const QuestionItem = React.memo(
   ({
     question,
+    questionNumber,
     answers,
     selectedAnswer,
     isBookmarked,
@@ -416,8 +535,10 @@ const QuestionItem = React.memo(
     userId,
     saveAnswerToAPI,
     debouncedSaveToAPI,
+    isMobile = false,
   }: {
     question: Question;
+    questionNumber: number;
     answers: Answer[];
     selectedAnswer: any;
     isBookmarked: boolean;
@@ -439,6 +560,7 @@ const QuestionItem = React.memo(
       answerId: any,
       queTypeId: number
     ) => void;
+    isMobile?: boolean;
   }) => {
     const handleBookmarkClick = useCallback(() => {
       onToggleBookmark(question.question_id);
@@ -447,96 +569,104 @@ const QuestionItem = React.memo(
     return (
       <div
         id={`question-container-${question.question_id}`}
-        className="mb-4 sm:mb-6 p-3 sm:p-4 border rounded-lg shadow-sm bg-card scroll-mt-20 lg:scroll-mt-4"
+        className={
+          isMobile
+            ? "p-4"
+            : "p-4 sm:p-6 border rounded-xl shadow-sm bg-white dark:bg-slate-900 scroll-mt-20"
+        }
       >
-        <h2 className="flex justify-between items-start font-semibold mb-3 text-sm sm:text-base">
-          <div className="flex-1 min-w-0 pr-2">
-            <div dangerouslySetInnerHTML={{ __html: question.question_name }} />
-          </div>
+        <div className="flex justify-between items-start gap-3 mb-4">
+          <h2 className="flex-1 text-base sm:text-lg font-semibold min-w-0">
+            {questionNumber}. {/* Дугаар нэмсэн */}
+            <span
+              dangerouslySetInnerHTML={{ __html: question.question_name }}
+              className="[&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
+            />
+          </h2>
 
           <button
             onClick={handleBookmarkClick}
-            className={`ml-2 p-2 rounded-md flex-shrink-0 transition-all active:scale-95 ${
+            className={`p-2 rounded-lg flex-shrink-0 transition-all active:scale-95 ${
               isBookmarked
-                ? "bg-yellow-400 text-white hover:bg-yellow-500"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                ? "bg-yellow-400 text-white hover:bg-yellow-500 shadow-md"
+                : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
             }`}
-            title={isBookmarked ? "Bookmark хасах" : "Bookmark хийх"}
-            type="button"
+            aria-label={isBookmarked ? "Bookmark хасах" : "Bookmark хийх"}
           >
-            <Flag size={16} className={isBookmarked ? "fill-current" : ""} />
+            <Flag size={18} className={isBookmarked ? "fill-current" : ""} />
           </button>
-        </h2>
+        </div>
 
-        {question.que_type_id === 1 && (
-          <SingleSelectQuestion
-            questionId={question.question_id}
-            questionText={question.question_name}
-            answers={answers}
-            mode="exam"
-            selectedAnswer={selectedAnswer as number | null}
-            onAnswerChange={onSingleAnswerChange}
-          />
-        )}
+        <div className="space-y-3">
+          {question.que_type_id === 1 && (
+            <SingleSelectQuestion
+              questionId={question.question_id}
+              questionText={question.question_name}
+              answers={answers}
+              mode="exam"
+              selectedAnswer={selectedAnswer as number | null}
+              onAnswerChange={onSingleAnswerChange}
+            />
+          )}
 
-        {(question.que_type_id === 2 || question.que_type_id === 3) && (
-          <MultiSelectQuestion
-            questionId={question.question_id}
-            questionText={question.question_name}
-            answers={answers}
-            mode="exam"
-            selectedAnswers={
-              Array.isArray(selectedAnswer) ? selectedAnswer : []
-            }
-            onAnswerChange={onMultiAnswerChange}
-          />
-        )}
+          {(question.que_type_id === 2 || question.que_type_id === 3) && (
+            <MultiSelectQuestion
+              questionId={question.question_id}
+              questionText={question.question_name}
+              answers={answers}
+              mode="exam"
+              selectedAnswers={
+                Array.isArray(selectedAnswer) ? selectedAnswer : []
+              }
+              onAnswerChange={onMultiAnswerChange}
+            />
+          )}
 
-        {question.que_type_id === 4 && (
-          <FillInTheBlankQuestionShadcn
-            questionId={question.question_id.toString()}
-            questionText={question.question_name}
-            onAnswerChange={(text: string) =>
-              onFillInTheBlankChange(question.question_id, text)
-            }
-          />
-        )}
+          {question.que_type_id === 4 && (
+            <FillInTheBlankQuestionShadcn
+              questionId={question.question_id.toString()}
+              questionText={question.question_name}
+              onAnswerChange={(text: string) =>
+                onFillInTheBlankChange(question.question_id, text)
+              }
+            />
+          )}
 
-        {question.que_type_id === 5 && (
-          <DragAndDropWrapper
-            answers={answers}
-            questionId={question.question_id}
-            examId={examId}
-            userId={userId}
-            mode="exam"
-            onOrderChange={(orderedIds) => {
-              onDragDropChange(question.question_id, orderedIds);
-              saveAnswerToAPI(
-                question.question_id,
-                orderedIds,
-                question.que_type_id
-              );
-            }}
-          />
-        )}
+          {question.que_type_id === 5 && (
+            <DragAndDropWrapper
+              answers={answers}
+              questionId={question.question_id}
+              examId={examId}
+              userId={userId}
+              mode="exam"
+              onOrderChange={(orderedIds) => {
+                onDragDropChange(question.question_id, orderedIds);
+                saveAnswerToAPI(
+                  question.question_id,
+                  orderedIds,
+                  question.que_type_id
+                );
+              }}
+            />
+          )}
 
-        {question.que_type_id === 6 && (
-          <MatchingByLineWrapper
-            questions={matchingData.questions as any}
-            answers={matchingData.answers as any}
-            questionId={question.question_id}
-            examId={examId}
-            userId={userId}
-            onMatchChange={(matches) => {
-              console.log("📊 Matching updated:", matches);
-              saveAnswerToAPI(
-                question.question_id,
-                matches,
-                question.que_type_id
-              );
-            }}
-          />
-        )}
+          {question.que_type_id === 6 && (
+            <MatchingByLineWrapper
+              questions={matchingData.questions as any}
+              answers={matchingData.answers as any}
+              questionId={question.question_id}
+              examId={examId}
+              userId={userId}
+              onMatchChange={(matches) => {
+                saveAnswerToAPI(
+                  question.question_id,
+                  matches,
+                  question.que_type_id
+                );
+              }}
+            />
+          )}
+        </div>
       </div>
     );
   }

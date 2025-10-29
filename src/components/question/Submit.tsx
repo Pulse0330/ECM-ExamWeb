@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle, Loader2, AlertTriangle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { finishExam, getExamResults } from "@/lib/api";
 import {
@@ -93,7 +93,6 @@ export default function SubmitExamButtonWithDialog({
         setExamResult(results.RetData?.[0] || null);
       } catch (resultsError) {
         console.warn("⚠️ Could not fetch results:", resultsError);
-        // Үр дүн татаж чадаагүй ч шалгалт дууссан тул үргэлжлүүлнэ
       }
 
       setIsOpen(false);
@@ -107,21 +106,45 @@ export default function SubmitExamButtonWithDialog({
     }
   };
 
+  const handleViewDetailedResults = () => {
+    // Get testId from examResult or examInfo
+    const testId = examResult?.test_id || examInfo.id;
+
+    // Navigate to detailed result page
+    router.push(`/examdetail/${examInfo.id}`);
+  };
   const handleCloseResult = () => {
     setResultOpen(false);
-    // Үр дүн хаахад шалгалтын жагсаалт руу буцах
-    router.push("/examdetail");
+    // Home page руу буцах
+    router.push("/home");
   };
 
   return (
     <>
-      {/* Шалгалт дуусгах товч */}
-      <div className="sticky top-6 mb-6">
+      {/* Шалгалт дуусгах товч - Responsive */}
+      <div className="md:sticky md:top-6">
+        {/* Mobile: Compact button */}
+        <Button
+          onClick={() => setIsOpen(true)}
+          disabled={isSubmitting}
+          className="md:hidden h-8 px-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-md text-sm font-medium"
+        >
+          {isSubmitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <Send size={14} className="mr-1" />
+              Илгээх
+            </>
+          )}
+        </Button>
+
+        {/* Desktop: Full button */}
         <Button
           onClick={() => setIsOpen(true)}
           disabled={isSubmitting}
           size="lg"
-          className="w-full"
+          className="hidden md:flex w-full"
           variant={allAnswered ? "default" : "outline"}
         >
           {isSubmitting ? (
@@ -130,7 +153,10 @@ export default function SubmitExamButtonWithDialog({
               Илгээж байна...
             </>
           ) : (
-            "Шалгалт дуусгах"
+            <>
+              <Send className="mr-2 h-5 w-5" />
+              Шалгалт дуусгах
+            </>
           )}
           {!allAnswered && !isSubmitting && (
             <Badge variant="secondary" className="ml-2">
@@ -142,7 +168,7 @@ export default function SubmitExamButtonWithDialog({
 
       {/* Confirmation Dialog */}
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md mx-4">
           <AlertDialogHeader>
             <AlertDialogTitle>Шалгалт дуусгах</AlertDialogTitle>
             <AlertDialogDescription>
@@ -185,7 +211,7 @@ export default function SubmitExamButtonWithDialog({
             {!allAnswered && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
+                <AlertDescription className="text-sm">
                   Та {unanswered} асуултад хариулаагүй байна. Хариулаагүй
                   асуултууд 0 оноотой тооцогдоно.
                 </AlertDescription>
@@ -196,12 +222,12 @@ export default function SubmitExamButtonWithDialog({
             {error && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="text-sm">{error}</AlertDescription>
               </Alert>
             )}
           </div>
 
-          <AlertDialogFooter className="gap-2 sm:gap-2">
+          <AlertDialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {
@@ -209,14 +235,14 @@ export default function SubmitExamButtonWithDialog({
                 setError(null);
               }}
               disabled={isSubmitting}
-              className="flex-1"
+              className="flex-1 w-full sm:w-auto"
             >
               Үгүй, буцах
             </Button>
             <Button
               onClick={handleConfirmSubmit}
               disabled={isSubmitting}
-              className="flex-1"
+              className="flex-1 w-full sm:w-auto bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
             >
               {isSubmitting ? (
                 <>
@@ -234,9 +260,9 @@ export default function SubmitExamButtonWithDialog({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Exam Result Dialog */}
+      {/* Exam Result Dialog - UPDATED */}
       <AlertDialog open={resultOpen} onOpenChange={setResultOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-600" />
@@ -265,24 +291,24 @@ export default function SubmitExamButtonWithDialog({
               </Card>
 
               {/* Results Grid */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <Card className="border-green-200 dark:border-green-800">
-                  <CardContent className="p-4 bg-green-50 dark:bg-green-950/30">
+                  <CardContent className="p-3 sm:p-4 bg-green-50 dark:bg-green-950/30">
                     <p className="text-xs text-muted-foreground mb-1">
                       Зөв хариулт
                     </p>
-                    <p className="text-3xl font-bold text-green-600">
+                    <p className="text-2xl sm:text-3xl font-bold text-green-600">
                       {examResult.correct_ttl}
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-red-200 dark:border-red-800">
-                  <CardContent className="p-4 bg-red-50 dark:bg-red-950/30">
+                <Card>
+                  <CardContent className="p-3 sm:p-4 bg-red-50 dark:bg-red-950/30">
                     <p className="text-xs text-muted-foreground mb-1">
                       Буруу хариулт
                     </p>
-                    <p className="text-3xl font-bold text-red-600">
+                    <p className="text-2xl sm:text-3xl font-bold text-red-600">
                       {examResult.wrong_ttl}
                     </p>
                   </CardContent>
@@ -290,12 +316,12 @@ export default function SubmitExamButtonWithDialog({
               </div>
 
               {/* Score */}
-              <Card className="border-blue-200 dark:border-blue-800">
+              <Card>
                 <CardContent className="pt-6">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">Олсон оноо:</span>
-                      <span className="text-2xl font-bold text-blue-600">
+                      <span className="text-xl sm:text-2xl font-bold text-blue-600">
                         {examResult.point}/{examResult.ttl_point}
                       </span>
                     </div>
@@ -309,13 +335,13 @@ export default function SubmitExamButtonWithDialog({
 
               {/* Grade */}
               {examResult.unelgee && (
-                <Card className="border-purple-200 dark:border-purple-800">
+                <Card>
                   <CardContent className="p-4 bg-purple-50 dark:bg-purple-950/30">
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground mb-1">
                         Үнэлгээ
                       </p>
-                      <p className="text-3xl font-bold text-purple-600">
+                      <p className="text-2xl sm:text-3xl font-bold text-purple-600">
                         {examResult.unelgee}
                       </p>
                     </div>
@@ -333,9 +359,19 @@ export default function SubmitExamButtonWithDialog({
             </div>
           )}
 
-          <AlertDialogFooter>
-            <Button onClick={handleCloseResult} className="w-full" size="lg">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleCloseResult}
+              variant="outline"
+              className="w-full sm:flex-1"
+            >
               Хаах
+            </Button>
+            <Button
+              onClick={handleViewDetailedResults}
+              className="w-full sm:flex-1  "
+            >
+              Дэлгэрэнгүй үр дүн
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

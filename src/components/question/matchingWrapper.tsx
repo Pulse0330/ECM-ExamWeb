@@ -132,7 +132,7 @@ export default function MatchingByLineWrapper({
   return (
     <div className="relative">
       {isSaving && (
-        <div className="absolute top-0 right-0 text-xs text-gray-500 bg-white px-2 py-1 rounded shadow-sm z-10">
+        <div className="absolute top-0 right-0 text-xs text-gray-500 px-2 py-1 rounded shadow-sm z-10">
           Хадгалж байна...
         </div>
       )}

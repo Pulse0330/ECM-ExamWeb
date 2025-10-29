@@ -1,106 +1,119 @@
 "use client";
 
-import { Flag, Map } from "lucide-react";
-import { useState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Flag } from "lucide-react";
+import { useMemo, memo } from "react";
 
-export default function MiniMap({
-  questions,
-  choosedAnswers,
-  bookmarks,
-  onJump,
-}: {
+interface MiniMapProps {
   questions: any[];
   choosedAnswers: Record<number, number>;
   bookmarks: number[];
+  currentQuestionIndex?: number;
   onJump: (qid: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
+}
 
-  const MapContent = () => (
-    <div className="flex flex-wrap gap-1.5 p-2 rounded justify-center">
-      {questions.map((q, idx) => {
-        const answered = !!choosedAnswers[q.question_id];
-        const isBookmarked = bookmarks.includes(q.question_id);
+const MiniMap = memo(function MiniMap({
+  questions,
+  choosedAnswers,
+  bookmarks,
+  currentQuestionIndex,
+  onJump,
+}: MiniMapProps) {
+  const stats = useMemo(() => {
+    const answered = Object.keys(choosedAnswers).length;
+    const bookmarked = bookmarks.length;
+    const total = questions.length;
+    return { answered, bookmarked, total };
+  }, [choosedAnswers, bookmarks, questions.length]);
 
-        return (
-          <div
-            key={q.question_id}
-            className={`relative size-11 md:size-9 rounded cursor-pointer border
-              flex items-center justify-center transition-all
-              ${
-                answered
-                  ? "bg-green-500 text-white border-green-600"
-                  : "border-2 text-gray-800 dark:text-gray-200 dark:border-gray-600 hover:border-primary"
-              }`}
-            onClick={() => {
-              onJump(q.question_id);
-              setOpen(false);
-            }}
-          >
-            <span className="text-sm font-semibold">{idx + 1}</span>
-
-            {isBookmarked && (
-              <span className="absolute -top-1 -right-1">
-                <Flag
-                  size={14}
-                  className="fill-yellow-500 text-yellow-500 drop-shadow"
-                />
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const bookmarkedQuestions = useMemo(() => {
+    return questions.filter((q) => bookmarks.includes(q.question_id));
+  }, [questions, bookmarks]);
 
   return (
-    <>
-      {/* Mobile - Sheet */}
-      <div className="md:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Map size={16} />
-              Асуултын зураг
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-[80vh]">
-            <SheetHeader>
-              <SheetTitle>Асуултын зураг</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4 overflow-y-auto max-h-[calc(80vh-80px)]">
-              <MapContent />
-              <div className="mt-6 space-y-2 text-sm text-muted-foreground px-2">
-                <div className="flex items-center gap-2">
-                  <div className="size-8 bg-green-500 rounded"></div>
-                  <span>Хариулсан</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="size-8 border-2 rounded"></div>
-                  <span>Хариулаагүй</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Flag size={16} className="fill-yellow-500 text-yellow-500" />
-                  <span>Тэмдэглэгдсэн</span>
-                </div>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+    <div className="space-y-2">
+      {/* Compact Stats Card */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm px-3 py-2.5 border">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+            Асуултын зураг
+          </span>
+          <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full font-semibold">
+            {stats.answered}/{stats.total}
+          </span>
+        </div>
+        <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-green-500 transition-all duration-300"
+            style={{ width: `${(stats.answered / stats.total) * 100}%` }}
+          />
+        </div>
       </div>
 
-      {/* Desktop - Delgetsэн харагдана */}
-      <div className="hidden md:block border rounded-lg">
-        <MapContent />
+      {/* Dot Grid */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-2.5 border">
+        <div className="flex flex-wrap gap-1.5 lg:grid lg:grid-cols-6">
+          {questions.map((q, idx) => {
+            const answered = !!choosedAnswers[q.question_id];
+            const isBookmarked = bookmarks.includes(q.question_id);
+            const isCurrent = currentQuestionIndex === idx;
+
+            return (
+              <button
+                key={q.question_id}
+                onClick={() => onJump(q.question_id)}
+                className={`relative w-9 h-9 lg:w-full lg:aspect-square rounded-lg transition-all active:scale-90 flex items-center justify-center text-xs font-bold
+                  ${
+                    answered
+                      ? "bg-green-500 text-white shadow-sm"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600"
+                  }
+                  ${isCurrent ? "" : ""}
+                `}
+              >
+                {idx + 1}
+
+                {isBookmarked && (
+                  <span className="absolute -top-1 -right-1 z-10">
+                    <div className="bg-yellow-400 rounded-full p-0.5 shadow-md">
+                      <Flag size={8} className="fill-white text-white" />
+                    </div>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </>
+
+      {/* Bookmarks Section */}
+      {bookmarkedQuestions.length > 0 && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl shadow-sm p-2.5 border border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Flag size={12} className="fill-yellow-500 text-yellow-500" />
+            <span className="text-xs font-bold text-yellow-800 dark:text-yellow-200">
+              Тэмдэглэсэн ({bookmarkedQuestions.length})
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {bookmarkedQuestions.map((q) => {
+              const questionIndex = questions.findIndex(
+                (quest) => quest.question_id === q.question_id
+              );
+              return (
+                <button
+                  key={q.question_id}
+                  onClick={() => onJump(q.question_id)}
+                  className="bg-white dark:bg-slate-800 border border-yellow-300 dark:border-yellow-700 rounded-lg px-2.5 py-1 text-xs font-semibold text-yellow-700 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 active:scale-95 transition-all"
+                >
+                  #{questionIndex + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
-}
+});
+
+export default MiniMap;

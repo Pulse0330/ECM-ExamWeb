@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { Clock, AlertCircle } from "lucide-react";
 
 type TimerProps = {
-  durationMinutes: number; // Шалгалтын хугацаа (минут)
-  examName: string; // Шалгалтын нэр
-  variant?: string; // Вариант
-  startTime?: Date; // Эхэлсэн цаг
-  onTimeUp?: () => void; // Цаг дуусах callback
+  durationMinutes: number;
+  examName: string;
+  variant?: string;
+  startTime?: Date;
+  onTimeUp?: () => void;
 };
 
 export default function ITimer({
@@ -47,33 +48,80 @@ export default function ITimer({
     return () => clearInterval(id);
   }, [isRunning, onTimeUp, clientStartTime]);
 
-  const colorClass =
-    timeLeft <= 60
-      ? "text-red-400"
-      : timeLeft <= 5 * 60
-      ? "text-yellow-300"
-      : "text-black dark:text-white";
+  // ⏱ Формат тохиргоо
+  const hours = Math.floor(timeLeft / 3600);
+  const minutes = Math.floor((timeLeft % 3600) / 60);
+  const seconds = timeLeft % 60;
 
-  const isFinalPhase = timeLeft <= 10;
-  const sizeClass = isFinalPhase
-    ? "text-6xl font-extrabold"
-    : "text-2xl font-bold";
-  const animClass = isFinalPhase ? "animate-pulse" : "";
+  // 60 минутаас их бол цаг харуулна
+  const formattedTime =
+    durationMinutes > 60
+      ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+          2,
+          "0"
+        )}:${String(seconds).padStart(2, "0")}`
+      : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+          2,
+          "0"
+        )}`;
 
-  const m = String(Math.floor(timeLeft / 60)).padStart(2, "0");
-  const s = String(timeLeft % 60).padStart(2, "0");
+  const status = useMemo(() => {
+    if (timeLeft <= 60) return { label: "Маш бага" };
+    if (timeLeft <= 5 * 60) return { label: "Анхаар" };
+    return { label: "Хэвийн" };
+  }, [timeLeft]);
 
   if (!clientStartTime) return null;
 
   return (
-    <div className="border p-2 rounded w-65">
-      <div className="p-4 w-64 flex flex-col gap-4">
+    <>
+      {/* Mobile - Compact */}
+      <div className="md:hidden">
         <div
-          className={`flex justify-center ${sizeClass} ${colorClass} ${animClass}`}
+          className="
+            inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
+            border
+          "
         >
-          {m}:{s}
+          <Clock size={16} className="flex-shrink-0" />
+          <div className="font-semibold text-base tabular-nums">
+            {formattedTime}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Desktop - Full Card */}
+      <div className="hidden md:block rounded-xl border shadow-sm overflow-hidden">
+        <div className="p-4 flex flex-col items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Clock size={20} />
+            <span className="text-sm font-medium opacity-80">
+              Үлдсэн хугацаа
+            </span>
+          </div>
+
+          <div className="text-5xl font-bold tabular-nums tracking-tight">
+            {formattedTime}
+          </div>
+
+          {timeLeft <= 5 * 60 && (
+            <div className="flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-full text-gray-700">
+              <AlertCircle size={14} />
+              <span>{status.label}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="p-3 text-center">
+          <div className="text-xs">
+            Дуусах цаг:{" "}
+            {endTime?.toLocaleTimeString("mn-MN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

@@ -22,6 +22,7 @@ const cn = (...classes: (string | undefined)[]) =>
   classes.filter(Boolean).join(" ");
 
 export default function Home() {
+  const router = useRouter();
   const userId = useAuthStore((s) => s.userId);
   const {
     data: apiData,
@@ -141,7 +142,7 @@ export default function Home() {
   const examPackages = apiData.RetDataSecond || [];
   const activeExams = apiData.RetDataThirt || [];
   const pastExams = apiData.RetDataFourth || [];
-  const router = useRouter();
+
   const suggestedExam = activeExams.length > 0 ? activeExams[0] : null;
 
   return (

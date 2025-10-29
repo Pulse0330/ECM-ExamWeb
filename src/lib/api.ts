@@ -139,9 +139,9 @@ export const getExamResultMore = async (
   userId: number
 ): Promise<any> => {
   const { data } = await api.post("/resexammore", {
-    test_id: 16016,
-    exam_id: 7900,
-    user_id: 223221,
+    test_id: testId,
+    exam_id: examId,
+    user_id: userId,
   });
   return data;
 };
