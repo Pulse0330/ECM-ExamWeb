@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import SingleSelectQuestion from "@/components/question/sinleselect";
 import MultiSelectQuestion from "@/components/question/multiselect";
@@ -17,11 +17,20 @@ import MatchingByLineWrapper from "@/components/question/matchingWrapper";
 import MiniMap from "@/app/exam/minimap";
 import ITimer from "@/app/exam/itimer";
 import SubmitExamButtonWithDialog from "@/components/question/Submit";
-import { Flag, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
-import { getExamById, saveExamAnswer } from "@/lib/api";
+import {
+  Flag,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+} from "lucide-react";
+import { getExamById, saveExamAnswer, finishExam } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
+import { useExamStore } from "@/stores/examStore";
 import type { ApiExamResponse, Question, Answer } from "@/types/exam";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { getTestIdFromResponse, isExamSubmitSuccess } from "@/types/examfinish";
 
 type SelectedAnswersType = {
   [key: number]: number | number[] | string | Record<string, string> | null;
@@ -30,7 +39,9 @@ type SelectedAnswersType = {
 export default function ExamPage() {
   const { id } = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const userId = useAuthStore((s) => s.userId);
+  const { setTestId } = useExamStore();
   const requestedCount = searchParams.get("count");
 
   const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersType>(
@@ -39,6 +50,8 @@ export default function ExamPage() {
   const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isAutoSubmitting, setIsAutoSubmitting] = useState(false);
+
   const saveQueueRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const questionContainerRef = useRef<HTMLDivElement>(null);
 
@@ -247,6 +260,49 @@ export default function ExamPage() {
     }
   }, [currentQuestionIndex, handleJumpToQuestion]);
 
+  // 🔥 AUTO SUBMIT ON TIME UP
+  const handleTimeUp = useCallback(async () => {
+    if (isAutoSubmitting || !examInfo.length) return;
+
+    setIsAutoSubmitting(true);
+
+    toast.warning("⏰ Шалгалтын хугацаа дууслаа!", {
+      icon: <AlertTriangle className="w-5 h-5" />,
+      duration: 3000,
+    });
+
+    try {
+      console.log("🔄 Auto-submitting exam...");
+
+      const response = await finishExam(Number(userId), examInfo[0]);
+
+      if (!isExamSubmitSuccess(response)) {
+        throw new Error("Шалгалт автоматаар дуусгахад алдаа гарлаа");
+      }
+
+      const testId = getTestIdFromResponse(response);
+      if (!testId) throw new Error("Test ID олдсонгүй");
+
+      setTestId(testId);
+
+      toast.success("✅ Шалгалт автоматаар дууслаа", {
+        duration: 2000,
+      });
+
+      // Navigate to results
+      setTimeout(() => {
+        router.push(`/examdetail/${testId}-${id}`);
+      }, 2000);
+    } catch (error) {
+      console.error("❌ Auto-submit failed:", error);
+      toast.error("Шалгалт автоматаар дуусгахад алдаа гарлаа", {
+        description: "Та дахин оролдоно уу",
+      });
+    } finally {
+      setIsAutoSubmitting(false);
+    }
+  }, [examInfo, userId, id, router, setTestId, isAutoSubmitting]);
+
   useEffect(() => {
     return () => {
       saveQueueRef.current.forEach((timeout) => clearTimeout(timeout));
@@ -306,16 +362,17 @@ export default function ExamPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 pb-16 lg:pb-0">
-      {/* Mobile: Top Header - ШИНЭЧИЛСЭН */}
+      {/* Mobile: Top Header */}
       <header className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b shadow-sm">
         <div className="px-3 py-2">
           {/* Timer + Submit Row */}
           <div className="flex items-center justify-between gap-2 mb-2">
             {examInfo.length > 0 && (
               <ITimer
+                endTime={examInfo[0].end_time}
                 durationMinutes={examInfo[0].minut}
                 examName={examInfo[0].title}
-                startTime={new Date()}
+                onTimeUp={handleTimeUp}
               />
             )}
 
@@ -420,16 +477,17 @@ export default function ExamPage() {
           <div className="sticky top-4">
             {examInfo.length > 0 && (
               <ITimer
+                endTime={examInfo[0].end_time}
                 durationMinutes={examInfo[0].minut}
                 examName={examInfo[0].title}
-                startTime={new Date()}
+                onTimeUp={handleTimeUp}
               />
             )}
           </div>
         </aside>
       </div>
 
-      {/* Mobile: Layout - ШИНЭЧИЛСЭН */}
+      {/* Mobile: Layout */}
       <div className="md:hidden px-3 py-3" ref={questionContainerRef}>
         <div className="space-y-3">
           {examInfoCard}
@@ -458,7 +516,7 @@ export default function ExamPage() {
             </div>
           )}
 
-          {/* MiniMap доор */}
+          {/* MiniMap */}
           <MiniMap
             questions={displayQuestions}
             choosedAnswers={selectedAnswers as Record<number, number>}
@@ -493,7 +551,7 @@ export default function ExamPage() {
             className={`flex-1 h-11 font-medium transition-all ${
               isCurrentAnswered
                 ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
-                : "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-800  "
+                : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
             }`}
           >
             {currentQuestionIndex === displayQuestions.length - 1
@@ -508,18 +566,34 @@ export default function ExamPage() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="md:hidden fixed bottom-[72px] right-4 z-30 p-2.5 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 rounded-full shadow-xl active:scale-95 transition-transform"
+          className="md:hidden fixed bottom-[72px] right-4 z-30 p-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full shadow-xl active:scale-95 transition-transform"
           aria-label="Дээш гарах"
         >
           <ChevronUp size={20} />
         </button>
       )}
+
+      {/* Auto-submitting overlay */}
+      {isAutoSubmitting && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-2xl max-w-sm mx-4">
+            <div className="flex flex-col items-center gap-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+              <p className="text-lg font-semibold">Шалгалт дуусгаж байна...</p>
+              <p className="text-sm text-muted-foreground text-center">
+                Хугацаа дууссан тул автоматаар илгээж байна
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const QuestionItem = React.memo(
-  ({
+// QuestionItem component (same as before)
+const QuestionItem = React.memo((props: any) => {
+  const {
     question,
     questionNumber,
     answers,
@@ -536,140 +610,115 @@ const QuestionItem = React.memo(
     saveAnswerToAPI,
     debouncedSaveToAPI,
     isMobile = false,
-  }: {
-    question: Question;
-    questionNumber: number;
-    answers: Answer[];
-    selectedAnswer: any;
-    isBookmarked: boolean;
-    onToggleBookmark: (qid: number) => void;
-    onSingleAnswerChange: (qid: number, answerId: number | null) => void;
-    onMultiAnswerChange: (qid: number, answerIds: number[]) => void;
-    onFillInTheBlankChange: (qid: number, text: string) => void;
-    onDragDropChange: (qid: number, orderedIds: any) => void;
-    matchingData: { questions: Answer[]; answers: Answer[] };
-    examId: number;
-    userId: number;
-    saveAnswerToAPI: (
-      questionId: number,
-      answerId: any,
-      queTypeId: number
-    ) => void;
-    debouncedSaveToAPI: (
-      questionId: number,
-      answerId: any,
-      queTypeId: number
-    ) => void;
-    isMobile?: boolean;
-  }) => {
-    const handleBookmarkClick = useCallback(() => {
-      onToggleBookmark(question.question_id);
-    }, [onToggleBookmark, question.question_id]);
+  } = props;
 
-    return (
-      <div
-        id={`question-container-${question.question_id}`}
-        className={
-          isMobile
-            ? "p-4"
-            : "p-4 sm:p-6 border rounded-xl shadow-sm bg-white dark:bg-slate-900 scroll-mt-20"
-        }
-      >
-        <div className="flex justify-between items-start gap-3 mb-4">
-          <h2 className="flex-1 text-base sm:text-lg font-semibold min-w-0">
-            {questionNumber}. {/* Дугаар нэмсэн */}
-            <span
-              dangerouslySetInnerHTML={{ __html: question.question_name }}
-              className="[&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
-            />
-          </h2>
+  const handleBookmarkClick = useCallback(() => {
+    onToggleBookmark(question.question_id);
+  }, [onToggleBookmark, question.question_id]);
 
-          <button
-            onClick={handleBookmarkClick}
-            className={`p-2 rounded-lg flex-shrink-0 transition-all active:scale-95 ${
-              isBookmarked
-                ? "bg-yellow-400 text-white hover:bg-yellow-500 shadow-md"
-                : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-            aria-label={isBookmarked ? "Bookmark хасах" : "Bookmark хийх"}
-          >
-            <Flag size={18} className={isBookmarked ? "fill-current" : ""} />
-          </button>
-        </div>
+  return (
+    <div
+      id={`question-container-${question.question_id}`}
+      className={
+        isMobile
+          ? "p-4"
+          : "p-4 sm:p-6 border rounded-xl shadow-sm bg-white dark:bg-slate-900 scroll-mt-20"
+      }
+    >
+      <div className="flex justify-between items-start gap-3 mb-4">
+        <h2 className="flex-1 text-base sm:text-lg font-semibold min-w-0">
+          {questionNumber}.{" "}
+          <span
+            dangerouslySetInnerHTML={{ __html: question.question_name }}
+            className="[&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
+          />
+        </h2>
 
-        <div className="space-y-3">
-          {question.que_type_id === 1 && (
-            <SingleSelectQuestion
-              questionId={question.question_id}
-              questionText={question.question_name}
-              answers={answers}
-              mode="exam"
-              selectedAnswer={selectedAnswer as number | null}
-              onAnswerChange={onSingleAnswerChange}
-            />
-          )}
-
-          {(question.que_type_id === 2 || question.que_type_id === 3) && (
-            <MultiSelectQuestion
-              questionId={question.question_id}
-              questionText={question.question_name}
-              answers={answers}
-              mode="exam"
-              selectedAnswers={
-                Array.isArray(selectedAnswer) ? selectedAnswer : []
-              }
-              onAnswerChange={onMultiAnswerChange}
-            />
-          )}
-
-          {question.que_type_id === 4 && (
-            <FillInTheBlankQuestionShadcn
-              questionId={question.question_id.toString()}
-              questionText={question.question_name}
-              onAnswerChange={(text: string) =>
-                onFillInTheBlankChange(question.question_id, text)
-              }
-            />
-          )}
-
-          {question.que_type_id === 5 && (
-            <DragAndDropWrapper
-              answers={answers}
-              questionId={question.question_id}
-              examId={examId}
-              userId={userId}
-              mode="exam"
-              onOrderChange={(orderedIds) => {
-                onDragDropChange(question.question_id, orderedIds);
-                saveAnswerToAPI(
-                  question.question_id,
-                  orderedIds,
-                  question.que_type_id
-                );
-              }}
-            />
-          )}
-
-          {question.que_type_id === 6 && (
-            <MatchingByLineWrapper
-              questions={matchingData.questions as any}
-              answers={matchingData.answers as any}
-              questionId={question.question_id}
-              examId={examId}
-              userId={userId}
-              onMatchChange={(matches) => {
-                saveAnswerToAPI(
-                  question.question_id,
-                  matches,
-                  question.que_type_id
-                );
-              }}
-            />
-          )}
-        </div>
+        <button
+          onClick={handleBookmarkClick}
+          className={`p-2 rounded-lg flex-shrink-0 transition-all active:scale-95 ${
+            isBookmarked
+              ? "bg-yellow-400 text-white hover:bg-yellow-500 shadow-md"
+              : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+          }`}
+          aria-label={isBookmarked ? "Bookmark хасах" : "Bookmark хийх"}
+        >
+          <Flag size={18} className={isBookmarked ? "fill-current" : ""} />
+        </button>
       </div>
-    );
-  }
-);
+
+      <div className="space-y-3">
+        {question.que_type_id === 1 && (
+          <SingleSelectQuestion
+            questionId={question.question_id}
+            questionText={question.question_name}
+            answers={answers}
+            mode="exam"
+            selectedAnswer={selectedAnswer as number | null}
+            onAnswerChange={onSingleAnswerChange}
+          />
+        )}
+
+        {(question.que_type_id === 2 || question.que_type_id === 3) && (
+          <MultiSelectQuestion
+            questionId={question.question_id}
+            questionText={question.question_name}
+            answers={answers}
+            mode="exam"
+            selectedAnswers={
+              Array.isArray(selectedAnswer) ? selectedAnswer : []
+            }
+            onAnswerChange={onMultiAnswerChange}
+          />
+        )}
+
+        {question.que_type_id === 4 && (
+          <FillInTheBlankQuestionShadcn
+            questionId={question.question_id.toString()}
+            questionText={question.question_name}
+            onAnswerChange={(text: string) =>
+              onFillInTheBlankChange(question.question_id, text)
+            }
+          />
+        )}
+
+        {question.que_type_id === 5 && (
+          <DragAndDropWrapper
+            answers={answers}
+            questionId={question.question_id}
+            examId={examId}
+            userId={userId}
+            mode="exam"
+            onOrderChange={(orderedIds) => {
+              onDragDropChange(question.question_id, orderedIds);
+              saveAnswerToAPI(
+                question.question_id,
+                orderedIds,
+                question.que_type_id
+              );
+            }}
+          />
+        )}
+
+        {question.que_type_id === 6 && (
+          <MatchingByLineWrapper
+            questions={matchingData.questions as any}
+            answers={matchingData.answers as any}
+            questionId={question.question_id}
+            examId={examId}
+            userId={userId}
+            onMatchChange={(matches) => {
+              saveAnswerToAPI(
+                question.question_id,
+                matches,
+                question.que_type_id
+              );
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
 
 QuestionItem.displayName = "QuestionItem";

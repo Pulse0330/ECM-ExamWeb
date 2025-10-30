@@ -2,60 +2,114 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Clock, AlertCircle } from "lucide-react";
+import { getServerDate } from "@/lib/api";
 
 type TimerProps = {
-  durationMinutes: number;
+  durationMinutes?: number;
+  endTime?: string;
   examName: string;
-  variant?: string;
-  startTime?: Date;
   onTimeUp?: () => void;
 };
 
 export default function ITimer({
   durationMinutes,
+  endTime: providedEndTime,
   examName,
-  variant,
-  startTime,
   onTimeUp,
 }: TimerProps) {
-  const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
+  const [serverTime, setServerTime] = useState<Date | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
-  const [clientStartTime, setClientStartTime] = useState<Date | null>(null);
 
+  // ========================================
+  // 1. Серверээс цаг авах
+  // ========================================
   useEffect(() => {
-    setClientStartTime(startTime || new Date());
-  }, [startTime]);
+    const fetchServerTime = async () => {
+      try {
+        const serverDateStr = await getServerDate();
 
-  const endTime = useMemo(() => {
-    if (!clientStartTime) return null;
-    return new Date(clientStartTime.getTime() + durationMinutes * 60 * 1000);
-  }, [clientStartTime, durationMinutes]);
+        if (serverDateStr) {
+          const currentServerTime = new Date(serverDateStr);
+          setServerTime(currentServerTime);
 
-  useEffect(() => {
-    if (!isRunning || !clientStartTime) return;
+          if (providedEndTime) {
+            const endDate = new Date(providedEndTime);
+            const diff = Math.floor(
+              (endDate.getTime() - currentServerTime.getTime()) / 1000
+            );
+            setTimeLeft(Math.max(0, diff));
 
-    const id = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(id);
-          onTimeUp?.();
-          return 0;
+            console.log("⏰ Timer initialized with end_time:", {
+              serverTime: currentServerTime.toISOString(),
+              endTime: endDate.toISOString(),
+              timeLeftSeconds: diff,
+              timeLeftMinutes: Math.floor(diff / 60),
+            });
+          } else if (durationMinutes) {
+            setTimeLeft(durationMinutes * 60);
+            console.log(
+              "⏰ Timer initialized with duration:",
+              durationMinutes,
+              "minutes"
+            );
+          }
+        } else {
+          console.warn("⚠️ No server date returned, using client time");
+          setServerTime(new Date());
+          if (durationMinutes) {
+            setTimeLeft(durationMinutes * 60);
+          }
         }
-        return prev - 1;
-      });
-    }, 1000);
+      } catch (error) {
+        console.error("❌ Server date fetch failed:", error);
+        setServerTime(new Date());
+        if (durationMinutes) {
+          setTimeLeft(durationMinutes * 60);
+        }
+      }
+    };
 
-    return () => clearInterval(id);
-  }, [isRunning, onTimeUp, clientStartTime]);
+    fetchServerTime();
+  }, [durationMinutes, providedEndTime]);
 
-  // ⏱ Формат тохиргоо
+  // ========================================
+  // 2. End time тооцоолох (MOVED BEFORE EARLY RETURN)
+  // ========================================
+  const endTime = useMemo(() => {
+    if (!serverTime) return null;
+
+    if (providedEndTime) {
+      return new Date(providedEndTime);
+    }
+
+    if (durationMinutes) {
+      return new Date(serverTime.getTime() + durationMinutes * 60 * 1000);
+    }
+
+    return null;
+  }, [serverTime, durationMinutes, providedEndTime]);
+
+  // ========================================
+  // 3. Status тодорхойлох (MOVED BEFORE EARLY RETURN)
+  // ========================================
+  const status = useMemo(() => {
+    if (timeLeft <= 60)
+      return { label: "Маш бага", color: "text-red-600", level: "critical" };
+    if (timeLeft <= 5 * 60)
+      return { label: "Анхаар", color: "text-orange-600", level: "warning" };
+    return { label: "Хэвийн", color: "text-green-600", level: "normal" };
+  }, [timeLeft]);
+
+  // ========================================
+  // 4. Форматласан цаг (MOVED BEFORE EARLY RETURN)
+  // ========================================
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
   const seconds = timeLeft % 60;
 
-  // 60 минутаас их бол цаг харуулна
   const formattedTime =
-    durationMinutes > 60
+    (durationMinutes && durationMinutes > 60) || hours > 0
       ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
           2,
           "0"
@@ -65,60 +119,144 @@ export default function ITimer({
           "0"
         )}`;
 
-  const status = useMemo(() => {
-    if (timeLeft <= 60) return { label: "Маш бага" };
-    if (timeLeft <= 5 * 60) return { label: "Анхаар" };
-    return { label: "Хэвийн" };
-  }, [timeLeft]);
+  // ========================================
+  // 5. Таймер ажиллуулах
+  // ========================================
+  useEffect(() => {
+    if (!isRunning || !serverTime) return;
 
-  if (!clientStartTime) return null;
+    const id = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          console.log("⏰ Time's up! Calling onTimeUp callback...");
+          onTimeUp?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
+    return () => clearInterval(id);
+  }, [isRunning, onTimeUp, serverTime]);
+
+  // ========================================
+  // 6. Loading state (NOW AFTER ALL HOOKS)
+  // ========================================
+  if (!serverTime) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border animate-pulse bg-white dark:bg-gray-800">
+        <Clock size={16} className="animate-spin text-blue-500" />
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          Уншиж байна...
+        </span>
+      </div>
+    );
+  }
+
+  // ========================================
+  // 7. Render
+  // ========================================
   return (
     <>
-      {/* Mobile - Compact */}
+      {/* ===================== */}
+      {/* Mobile Version        */}
+      {/* ===================== */}
       <div className="md:hidden">
         <div
-          className="
-            inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-            border
-          "
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-sm transition-all ${
+            timeLeft <= 60
+              ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+              : timeLeft <= 5 * 60
+              ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+              : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+          }`}
         >
-          <Clock size={16} className="flex-shrink-0" />
-          <div className="font-semibold text-base tabular-nums">
+          <Clock
+            size={16}
+            className={
+              timeLeft <= 60
+                ? "text-red-500 animate-pulse"
+                : timeLeft <= 5 * 60
+                ? "text-orange-500"
+                : "text-gray-600 dark:text-gray-400"
+            }
+          />
+          <div
+            className={`font-semibold text-base tabular-nums ${
+              timeLeft <= 60
+                ? "text-red-600 dark:text-red-400"
+                : timeLeft <= 5 * 60
+                ? "text-orange-600 dark:text-orange-400"
+                : "text-gray-900 dark:text-gray-100"
+            }`}
+          >
             {formattedTime}
           </div>
         </div>
       </div>
 
-      {/* Desktop - Full Card */}
-      <div className="hidden md:block rounded-xl border shadow-sm overflow-hidden">
+      {/* ===================== */}
+      {/* Desktop Version       */}
+      {/* ===================== */}
+      <div className="hidden md:block rounded-xl border shadow-sm overflow-hidden bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        {/* Timer Display */}
         <div className="p-4 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Clock size={20} />
+          {/* Header */}
+          <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+            <Clock
+              size={20}
+              className={
+                timeLeft <= 60
+                  ? "animate-pulse text-red-500"
+                  : timeLeft <= 5 * 60
+                  ? "text-orange-500"
+                  : ""
+              }
+            />
             <span className="text-sm font-medium opacity-80">
               Үлдсэн хугацаа
             </span>
           </div>
 
-          <div className="text-5xl font-bold tabular-nums tracking-tight">
+          {/* Time Display */}
+          <div
+            className={`text-5xl font-bold tabular-nums tracking-tight transition-colors ${
+              timeLeft <= 60
+                ? "text-red-600 dark:text-red-400 animate-pulse"
+                : timeLeft <= 5 * 60
+                ? "text-orange-600 dark:text-orange-400"
+                : "text-gray-900 dark:text-gray-100"
+            }`}
+          >
             {formattedTime}
           </div>
 
+          {/* Warning Badge */}
           {timeLeft <= 5 * 60 && (
-            <div className="flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-full text-gray-700">
+            <div
+              className={`flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-full transition-all ${
+                timeLeft <= 60
+                  ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 animate-pulse"
+                  : "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400"
+              }`}
+            >
               <AlertCircle size={14} />
               <span>{status.label}</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 text-center">
-          <div className="text-xs">
+        {/* End Time Footer */}
+        <div className="p-3 bg-gray-50 dark:bg-gray-900 text-center border-t dark:border-gray-700">
+          <div className="text-xs text-gray-600 dark:text-gray-400">
             Дуусах цаг:{" "}
-            {endTime?.toLocaleTimeString("mn-MN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            <span className="font-semibold text-gray-900 dark:text-gray-100">
+              {endTime?.toLocaleTimeString("mn-MN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }) || "—"}
+            </span>
           </div>
         </div>
       </div>

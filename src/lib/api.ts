@@ -1,14 +1,13 @@
 // src/lib/api.ts
 import api from "./axios";
 import { LoginResponseType } from "@/types/login";
-import {HomeResponseType} from "@/types/home";
+import { HomeResponseType } from "@/types/home";
 import { ApiExamlistsResponse } from "@/types/examlists";
 import { ApiSorillistsResponse } from "@/types/sorillists";
-import {UserProfileResponseType} from "@/types/userProfile";
-import {  ExamFinishResponse } from "@/types/examfinish";
-import { ApiExamResponse ,ExamInfo} from "@/types/exam";
+import { UserProfileResponseType } from "@/types/userProfile";
+import { ExamFinishResponse } from "@/types/examfinish";
+import { ApiExamResponse, ExamInfo } from "@/types/exam";
 import { ExamAnswerResponse } from "@/types/examChoosedAnswer";
-
 
 export const loginRequest = async (
   username: string,
@@ -19,62 +18,57 @@ export const loginRequest = async (
     password,
     deviceid: "",
     devicemodel: "",
-    
   });
   return data;
 };
 
 // ===== HomeScreen request =====
-
-
 export const getHomeScreen = async (
   userId: number
-) :  Promise<HomeResponseType> =>{
+): Promise<HomeResponseType> => {
   const { data } = await api.post<HomeResponseType>("/gethomescreen", {
     user_id: userId,
   });
   return data;
 };
 
-
-// ===== " Examlists request =====
-
+// ===== Examlists request =====
 export const getExamlists = async (
   userId: number
-) :  Promise<ApiExamlistsResponse> =>{
+): Promise<ApiExamlistsResponse> => {
   const { data } = await api.post<ApiExamlistsResponse>("/getexamlists", {
     user_id: userId,
-    "optype":0,
+    optype: 0,
   });
   return data;
 };
 
-
-// ===== " Sorillists request =====
-
+// ===== Sorillists request =====
 export const getSorillists = async (
   userId: number
-) :  Promise<ApiSorillistsResponse> =>{
+): Promise<ApiSorillistsResponse> => {
   const { data } = await api.post<ApiSorillistsResponse>("/getexamlists", {
     user_id: userId,
-    "optype":1,
+    optype: 1,
   });
   return data;
 };
 
-// ===== " UserProfile request =====
+// ===== UserProfile request =====
 export const getUserProfile = async (
   userId: number
-) :  Promise<UserProfileResponseType> =>{
+): Promise<UserProfileResponseType> => {
   const { data } = await api.post<UserProfileResponseType>("/getuserprofile", {
     user_id: userId,
   });
   return data;
 };
 
-// ===== " Exam request =====
-
-export const getExamById = async (userId: number, examId: number): Promise<ApiExamResponse> => {
+// ===== Exam request =====
+export const getExamById = async (
+  userId: number,
+  examId: number
+): Promise<ApiExamResponse> => {
   const { data } = await api.post<ApiExamResponse>("/getexamfill", {
     user_id: userId,
     exam_id: examId,
@@ -82,25 +76,36 @@ export const getExamById = async (userId: number, examId: number): Promise<ApiEx
   return data;
 };
 
-
-// ===== " ExamFinish request =====
-
+// ===== ExamFinish request =====
 export const finishExam = async (
   userId: number,
-   examInfo: ExamInfo, 
-): Promise<ExamFinishResponse> => {
-  const { data } = await api.post<ExamFinishResponse>("/examfinish", {
-    exam_id: examInfo.id,
-    exam_type: examInfo.exam_type,
-    start_eid: examInfo.start_eid,
-    exam_time: examInfo.minut,
-    user_id: userId,
-  
-  });
+  examInfo: ExamInfo
+): Promise<ExamFinishResponse & { RetData?: number }> => {
+  const { data } = await api.post<ExamFinishResponse & { RetData?: number }>(
+    "/examfinish",
+    {
+      exam_id: examInfo.id,
+      exam_type: examInfo.exam_type,
+      start_eid: examInfo.start_eid,
+      exam_time: examInfo.minut,
+      user_id: userId,
+    }
+  );
+
+  // Extract RetData (test_id) from response
+  const testId = data.RetData;
+
+  // Store in zustand if needed
+  if (testId) {
+    const { useExamStore } = await import("@/stores/examStore");
+    const { setTestId } = useExamStore.getState();
+    setTestId(testId);
+  }
+
   return data;
 };
-// ===== " ExamSave request =====
 
+// ===== ExamSave request =====
 export const saveExamAnswer = async (
   userId: number,
   examId: number,
@@ -122,17 +127,15 @@ export const saveExamAnswer = async (
   return data;
 };
 
-// =====  Get Exam Results =====
-export const getExamResults = async (
-  testId: number
-): Promise<any> => {
+// ===== Get Exam Results =====
+export const getExamResults = async (testId: number): Promise<any> => {
   const { data } = await api.post("/getexamresults", {
     test_id: testId,
   });
   return data;
 };
 
-// =====  (detailed results) =====
+// ===== Get Exam Result Details (resexammore) =====
 export const getExamResultMore = async (
   testId: number,
   examId: number,
@@ -144,4 +147,10 @@ export const getExamResultMore = async (
     user_id: userId,
   });
   return data;
+};
+
+// ===== Get Date =====
+export const getServerDate = async (): Promise<string> => {
+  const { data } = await api.post("/getdate", {});
+  return data?.RetData?.[0]?.systemdate ?? "";
 };

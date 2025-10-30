@@ -63,7 +63,7 @@ export default function FillInTheBlankQuestionShadcn({
       : "border-gray-300 bg-gray-50";
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg shadow-sm bg-white">
+    <div className="space-y-4 p-4 border rounded-lg shadow-sm ">
       <div className="grid w-full items-center gap-2">
         <Label
           htmlFor={`input-${questionId}`}

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { CheckCircle, Loader2, AlertTriangle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { finishExam, getExamResults } from "@/lib/api";
+import { useExamStore } from "@/stores/examStore";
 import {
   getTestIdFromResponse,
   isExamSubmitSuccess,
@@ -48,6 +49,9 @@ export default function SubmitExamButtonWithDialog({
   const [examResult, setExamResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Zustand store
+  const { setTestId } = useExamStore();
+
   const unanswered = totalQuestions - answeredQuestions;
   const allAnswered = unanswered === 0;
   const progressPercentage = Math.round(
@@ -66,9 +70,8 @@ export default function SubmitExamButtonWithDialog({
         examTime,
       });
 
-      // POST /examfinish
+      // ✅ POST /examfinish
       const response = await finishExam(userId, examInfo);
-
       console.log("📥 Exam finish response:", response);
 
       if (!isExamSubmitSuccess(response)) {
@@ -77,19 +80,19 @@ export default function SubmitExamButtonWithDialog({
         );
       }
 
+      // ✅ Test ID авах (RetData: 105066)
       const testId = getTestIdFromResponse(response);
-
-      if (!testId) {
-        throw new Error("Test ID олдсонгүй");
-      }
+      if (!testId) throw new Error("Test ID олдсонгүй");
 
       console.log("✅ Exam finished successfully, test_id:", testId);
 
-      // Үр дүн татах
+      // ✅ Test ID-г хадгалах
+      setTestId(testId);
+
+      // ✅ Үр дүн татах
       try {
         const results = await getExamResults(testId);
         console.log("📊 Exam results:", results);
-
         setExamResult(results.RetData?.[0] || null);
       } catch (resultsError) {
         console.warn("⚠️ Could not fetch results:", resultsError);
@@ -107,23 +110,32 @@ export default function SubmitExamButtonWithDialog({
   };
 
   const handleViewDetailedResults = () => {
-    // Get testId from examResult or examInfo
-    const testId = examResult?.test_id || examInfo.id;
+    // 🔥 ЗАСВАР: testId болон examId-г хамтад нь дамжуулах
+    const savedTestId = examResult?.test_id || useExamStore.getState().testId;
+    const examId = examInfo.id; // examInfo-с авах
 
-    // Navigate to detailed result page
-    router.push(`/examdetail/${examInfo.id}`);
+    if (savedTestId && examId) {
+      // 🔥 Format: /examdetail/105066-8155
+      router.push(`/examdetail/${savedTestId}-${examId}`);
+    } else {
+      console.error("⚠️ Test ID эсвэл Exam ID олдсонгүй:", {
+        testId: savedTestId,
+        examId,
+      });
+      setError("Үр дүн харах боломжгүй байна");
+    }
   };
+
   const handleCloseResult = () => {
     setResultOpen(false);
-    // Home page руу буцах
     router.push("/home");
   };
 
   return (
     <>
-      {/* Шалгалт дуусгах товч - Responsive */}
+      {/* === Submit Button === */}
       <div className="md:sticky md:top-6">
-        {/* Mobile: Compact button */}
+        {/* Mobile */}
         <Button
           onClick={() => setIsOpen(true)}
           disabled={isSubmitting}
@@ -139,7 +151,7 @@ export default function SubmitExamButtonWithDialog({
           )}
         </Button>
 
-        {/* Desktop: Full button */}
+        {/* Desktop */}
         <Button
           onClick={() => setIsOpen(true)}
           disabled={isSubmitting}
@@ -166,7 +178,7 @@ export default function SubmitExamButtonWithDialog({
         </Button>
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* === Confirmation Dialog === */}
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
         <AlertDialogContent className="max-w-md mx-4">
           <AlertDialogHeader>
@@ -177,7 +189,6 @@ export default function SubmitExamButtonWithDialog({
           </AlertDialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Progress */}
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-2">
@@ -207,18 +218,16 @@ export default function SubmitExamButtonWithDialog({
               </CardContent>
             </Card>
 
-            {/* Warning if not all answered */}
             {!allAnswered && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  Та {unanswered} асуултад хариулаагүй байна. Хариулаагүй
-                  асуултууд 0 оноотой тооцогдоно.
+                  Та {unanswered} асуултад хариулаагүй байна. Эдгээр асуулт 0
+                  оноотой тооцогдоно.
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Error message */}
             {error && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
@@ -260,7 +269,7 @@ export default function SubmitExamButtonWithDialog({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Exam Result Dialog - UPDATED */}
+      {/* === Result Dialog === */}
       <AlertDialog open={resultOpen} onOpenChange={setResultOpen}>
         <AlertDialogContent className="max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
@@ -272,7 +281,6 @@ export default function SubmitExamButtonWithDialog({
 
           {examResult ? (
             <div className="space-y-4 py-2">
-              {/* Exam Info */}
               <Card>
                 <CardContent className="pt-6">
                   <h3 className="font-semibold text-lg mb-2">
@@ -290,7 +298,6 @@ export default function SubmitExamButtonWithDialog({
                 </CardContent>
               </Card>
 
-              {/* Results Grid */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <Card className="border-green-200 dark:border-green-800">
                   <CardContent className="p-3 sm:p-4 bg-green-50 dark:bg-green-950/30">
@@ -315,7 +322,6 @@ export default function SubmitExamButtonWithDialog({
                 </Card>
               </div>
 
-              {/* Score */}
               <Card>
                 <CardContent className="pt-6">
                   <div className="space-y-3">
@@ -333,7 +339,6 @@ export default function SubmitExamButtonWithDialog({
                 </CardContent>
               </Card>
 
-              {/* Grade */}
               {examResult.unelgee && (
                 <Card>
                   <CardContent className="p-4 bg-purple-50 dark:bg-purple-950/30">
@@ -369,7 +374,7 @@ export default function SubmitExamButtonWithDialog({
             </Button>
             <Button
               onClick={handleViewDetailedResults}
-              className="w-full sm:flex-1  "
+              className="w-full sm:flex-1"
             >
               Дэлгэрэнгүй үр дүн
             </Button>
