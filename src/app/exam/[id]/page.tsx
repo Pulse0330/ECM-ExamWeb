@@ -369,8 +369,7 @@ export default function ExamPage() {
           <div className="flex items-center justify-between gap-2 mb-2">
             {examInfo.length > 0 && (
               <ITimer
-                endTime={examInfo[0].end_time}
-                durationMinutes={examInfo[0].minut}
+                endTime={examInfo[0].end_time} // ✅ Зөвхөн end_time
                 examName={examInfo[0].title}
                 onTimeUp={handleTimeUp}
               />
@@ -477,8 +476,7 @@ export default function ExamPage() {
           <div className="sticky top-4">
             {examInfo.length > 0 && (
               <ITimer
-                endTime={examInfo[0].end_time}
-                durationMinutes={examInfo[0].minut}
+                endTime={examInfo[0].end_time} // ✅ Зөвхөн end_time
                 examName={examInfo[0].title}
                 onTimeUp={handleTimeUp}
               />

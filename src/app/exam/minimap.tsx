@@ -1,7 +1,7 @@
 "use client";
 
-import { Flag } from "lucide-react";
-import { useMemo, memo } from "react";
+import { Flag, Clock } from "lucide-react";
+import { useMemo, memo, useState, useEffect } from "react";
 
 interface MiniMapProps {
   questions: any[];
@@ -9,6 +9,8 @@ interface MiniMapProps {
   bookmarks: number[];
   currentQuestionIndex?: number;
   onJump: (qid: number) => void;
+  endTime?: string; // Add endTime prop
+  examMinutes?: number; // Add examMinutes prop
 }
 
 const MiniMap = memo(function MiniMap({
@@ -17,7 +19,58 @@ const MiniMap = memo(function MiniMap({
   bookmarks,
   currentQuestionIndex,
   onJump,
+  endTime,
+  examMinutes,
 }: MiniMapProps) {
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!endTime) return;
+
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const end = new Date(endTime).getTime();
+      const diff = Math.max(0, Math.floor((end - now) / 1000));
+      setTimeLeft(diff);
+    };
+
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(interval);
+  }, [endTime]);
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${mins
+      .toString()
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const getTimeColor = () => {
+    if (!timeLeft || !examMinutes) return "text-slate-600";
+    const totalSeconds = examMinutes * 60;
+    const percentage = (timeLeft / totalSeconds) * 100;
+
+    if (percentage > 50) return "text-green-600 dark:text-green-400";
+    if (percentage > 20) return "text-yellow-600 dark:text-yellow-400";
+    return "text-red-600 dark:text-red-400";
+  };
+
+  const getTimeBgColor = () => {
+    if (!timeLeft || !examMinutes) return "bg-slate-100";
+    const totalSeconds = examMinutes * 60;
+    const percentage = (timeLeft / totalSeconds) * 100;
+
+    if (percentage > 50)
+      return "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800";
+    if (percentage > 20)
+      return "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800";
+    return "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800";
+  };
+
   const stats = useMemo(() => {
     const answered = Object.keys(choosedAnswers).length;
     const bookmarked = bookmarks.length;
@@ -31,6 +84,25 @@ const MiniMap = memo(function MiniMap({
 
   return (
     <div className="space-y-2">
+      {/* Timer Card */}
+      {timeLeft !== null && (
+        <div
+          className={`rounded-xl shadow-sm px-3 py-2.5 border ${getTimeBgColor()}`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock size={14} className={getTimeColor()} />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                Үлдсэн хугацаа
+              </span>
+            </div>
+            <span className={`text-sm font-mono font-bold ${getTimeColor()}`}>
+              {formatTime(timeLeft)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Compact Stats Card */}
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm px-3 py-2.5 border">
         <div className="flex items-center justify-between mb-1.5">

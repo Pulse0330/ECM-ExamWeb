@@ -1,98 +1,76 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Clock, AlertCircle } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { Clock, AlertCircle, Calendar } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { getServerDate } from "@/lib/api";
+import { useServerDateStore } from "@/stores/serverDateStore";
 
 type TimerProps = {
-  durationMinutes?: number;
-  endTime?: string;
-  examName: string;
+  endTime: string;
+  examName?: string;
   onTimeUp?: () => void;
 };
 
 export default function ITimer({
-  durationMinutes,
   endTime: providedEndTime,
   examName,
   onTimeUp,
 }: TimerProps) {
-  const [serverTime, setServerTime] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [isRunning, setIsRunning] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { setServerDate, getAdjustedTime } = useServerDateStore();
 
-  // ========================================
-  // 1. Серверээс цаг авах
-  // ========================================
+  // ✅ Use ref to store the callback to avoid re-creating intervals
+  const onTimeUpRef = useRef(onTimeUp);
+
+  // ✅ Keep the ref updated
   useEffect(() => {
-    const fetchServerTime = async () => {
-      try {
-        const serverDateStr = await getServerDate();
+    onTimeUpRef.current = onTimeUp;
+  }, [onTimeUp]);
 
-        if (serverDateStr) {
-          const currentServerTime = new Date(serverDateStr);
-          setServerTime(currentServerTime);
+  // ✅ Track if time up callback was already called
+  const timeUpCalledRef = useRef(false);
 
-          if (providedEndTime) {
-            const endDate = new Date(providedEndTime);
-            const diff = Math.floor(
-              (endDate.getTime() - currentServerTime.getTime()) / 1000
-            );
-            setTimeLeft(Math.max(0, diff));
+  const { data: serverDateString } = useQuery({
+    queryKey: ["serverTime"],
+    queryFn: getServerDate,
+    refetchInterval: 30000,
+    staleTime: 25000,
+  });
 
-            console.log("⏰ Timer initialized with end_time:", {
-              serverTime: currentServerTime.toISOString(),
-              endTime: endDate.toISOString(),
-              timeLeftSeconds: diff,
-              timeLeftMinutes: Math.floor(diff / 60),
-            });
-          } else if (durationMinutes) {
-            setTimeLeft(durationMinutes * 60);
-            console.log(
-              "⏰ Timer initialized with duration:",
-              durationMinutes,
-              "minutes"
-            );
-          }
-        } else {
-          console.warn("⚠️ No server date returned, using client time");
-          setServerTime(new Date());
-          if (durationMinutes) {
-            setTimeLeft(durationMinutes * 60);
-          }
-        }
-      } catch (error) {
-        console.error("❌ Server date fetch failed:", error);
-        setServerTime(new Date());
-        if (durationMinutes) {
-          setTimeLeft(durationMinutes * 60);
-        }
-      }
-    };
+  useEffect(() => {
+    if (serverDateString) {
+      setServerDate(serverDateString);
+    }
+  }, [serverDateString, setServerDate]);
 
-    fetchServerTime();
-  }, [durationMinutes, providedEndTime]);
+  useEffect(() => {
+    if (!serverDateString || isInitialized || !providedEndTime) return;
 
-  // ========================================
-  // 2. End time тооцоолох (MOVED BEFORE EARLY RETURN)
-  // ========================================
+    const currentServerTime = getAdjustedTime();
+    const endDate = new Date(providedEndTime);
+
+    const diff = Math.floor(
+      (endDate.getTime() - currentServerTime.getTime()) / 1000
+    );
+    setTimeLeft(Math.max(0, diff));
+
+    console.log("⏰ Timer initialized:", {
+      serverTime: currentServerTime.toISOString(),
+      endTime: endDate.toISOString(),
+      timeLeftSeconds: diff,
+      timeLeftMinutes: Math.floor(diff / 60),
+    });
+
+    setIsInitialized(true);
+  }, [serverDateString, providedEndTime, isInitialized, getAdjustedTime]);
+
   const endTime = useMemo(() => {
-    if (!serverTime) return null;
+    if (!providedEndTime) return null;
+    return new Date(providedEndTime);
+  }, [providedEndTime]);
 
-    if (providedEndTime) {
-      return new Date(providedEndTime);
-    }
-
-    if (durationMinutes) {
-      return new Date(serverTime.getTime() + durationMinutes * 60 * 1000);
-    }
-
-    return null;
-  }, [serverTime, durationMinutes, providedEndTime]);
-
-  // ========================================
-  // 3. Status тодорхойлох (MOVED BEFORE EARLY RETURN)
-  // ========================================
   const status = useMemo(() => {
     if (timeLeft <= 60)
       return { label: "Маш бага", color: "text-red-600", level: "critical" };
@@ -101,15 +79,12 @@ export default function ITimer({
     return { label: "Хэвийн", color: "text-green-600", level: "normal" };
   }, [timeLeft]);
 
-  // ========================================
-  // 4. Форматласан цаг (MOVED BEFORE EARLY RETURN)
-  // ========================================
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
   const seconds = timeLeft % 60;
 
   const formattedTime =
-    (durationMinutes && durationMinutes > 60) || hours > 0
+    hours > 0
       ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
           2,
           "0"
@@ -119,31 +94,35 @@ export default function ITimer({
           "0"
         )}`;
 
-  // ========================================
-  // 5. Таймер ажиллуулах
-  // ========================================
+  // ✅ Timer countdown with proper cleanup
   useEffect(() => {
-    if (!isRunning || !serverTime) return;
+    if (!isInitialized) return;
 
     const id = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(id);
-          console.log("⏰ Time's up! Calling onTimeUp callback...");
-          onTimeUp?.();
+          // ✅ Only call onTimeUp once, deferred to avoid state update during render
+          if (!timeUpCalledRef.current) {
+            console.log("⏰ Time's up! Calling onTimeUp callback...");
+            timeUpCalledRef.current = true;
+
+            // ✅ Defer callback to next tick to avoid "setState during render" error
+            setTimeout(() => {
+              onTimeUpRef.current?.();
+            }, 0);
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(id);
-  }, [isRunning, onTimeUp, serverTime]);
+    return () => {
+      clearInterval(id);
+    };
+  }, [isInitialized]); // ✅ Remove onTimeUp from dependencies
 
-  // ========================================
-  // 6. Loading state (NOW AFTER ALL HOOKS)
-  // ========================================
-  if (!serverTime) {
+  if (!isInitialized) {
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border animate-pulse bg-white dark:bg-gray-800">
         <Clock size={16} className="animate-spin text-blue-500" />
@@ -154,14 +133,24 @@ export default function ITimer({
     );
   }
 
-  // ========================================
-  // 7. Render
-  // ========================================
+  const formatEndTime = (date: Date) => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+
+    return {
+      date: `${year}.${month}.${day}`,
+      time: `${hours}:${minutes}`,
+    };
+  };
+
+  const formattedEndTime = endTime ? formatEndTime(endTime) : null;
+
   return (
     <>
-      {/* ===================== */}
-      {/* Mobile Version        */}
-      {/* ===================== */}
+      {/* Mobile Version */}
       <div className="md:hidden">
         <div
           className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-sm transition-all ${
@@ -196,13 +185,9 @@ export default function ITimer({
         </div>
       </div>
 
-      {/* ===================== */}
-      {/* Desktop Version       */}
-      {/* ===================== */}
+      {/* Desktop Version */}
       <div className="hidden md:block rounded-xl border shadow-sm overflow-hidden bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-        {/* Timer Display */}
         <div className="p-4 flex flex-col items-center gap-3">
-          {/* Header */}
           <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
             <Clock
               size={20}
@@ -219,7 +204,6 @@ export default function ITimer({
             </span>
           </div>
 
-          {/* Time Display */}
           <div
             className={`text-5xl font-bold tabular-nums tracking-tight transition-colors ${
               timeLeft <= 60
@@ -232,7 +216,6 @@ export default function ITimer({
             {formattedTime}
           </div>
 
-          {/* Warning Badge */}
           {timeLeft <= 5 * 60 && (
             <div
               className={`flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-full transition-all ${
@@ -247,18 +230,26 @@ export default function ITimer({
           )}
         </div>
 
-        {/* End Time Footer */}
-        <div className="p-3 bg-gray-50 dark:bg-gray-900 text-center border-t dark:border-gray-700">
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            Дуусах цаг:{" "}
-            <span className="font-semibold text-gray-900 dark:text-gray-100">
-              {endTime?.toLocaleTimeString("mn-MN", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }) || "—"}
-            </span>
+        {formattedEndTime && (
+          <div className="p-3 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-950/30 border-t dark:border-gray-700">
+            <div className="flex items-center justify-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                <Calendar size={12} />
+                <span className="font-medium">{formattedEndTime.date}</span>
+              </div>
+              <div className="w-px h-3 bg-gray-300 dark:bg-gray-600"></div>
+              <div className="flex items-center gap-1.5">
+                <Clock size={12} className="text-blue-600 dark:text-blue-400" />
+                <span className="font-semibold text-blue-700 dark:text-blue-300">
+                  {formattedEndTime.time}
+                </span>
+                <span className="text-gray-500 dark:text-gray-500 text-[10px]">
+                  UTC
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );
