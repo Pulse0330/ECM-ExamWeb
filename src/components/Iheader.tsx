@@ -18,6 +18,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
+import ServerDate from "./serverdate";
 
 export default function IHeader() {
   const router = useRouter();
@@ -39,7 +40,9 @@ export default function IHeader() {
         )}
       >
         <div className="w-full max-w-7xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center">
-          <div />
+          <div className="justify-self-start">
+            <ServerDate />
+          </div>
 
           <div className="justify-self-center">
             <Imenu />
@@ -55,7 +58,7 @@ export default function IHeader() {
                   size="sm"
                   className="text-sm font-medium"
                 >
-                  Log out
+                 Системээс гарах
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">

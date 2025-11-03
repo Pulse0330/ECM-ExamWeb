@@ -14,8 +14,6 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { getExamlists } from "@/lib/api";
 import { ApiExamlistsResponse, ExamData } from "@/types/examlists";
-import { useRouter } from "next/navigation";
-
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,9 +24,6 @@ type ExamCategory = "all" | "active" | "free" | "paid" | "expired";
 
 export default function ExamListPage() {
   const userId = useAuthStore((s) => s.userId);
-  const router = useRouter();
-  const now = new Date();
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ExamCategory>("all");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -40,38 +35,47 @@ export default function ExamListPage() {
   });
 
   const data: ExamData[] = queryData?.RetData || [];
+  const isEmptyResponse = queryData?.RetResponse?.ResponseMessage === "Амжилтгүй";
 
-  // Category-д ангилах
+  // ✅ Remove duplicates from raw data
+  const uniqueData = useMemo(() => {
+    const seen = new Set<number>();
+    return data.filter((exam) => {
+      if (seen.has(exam.exam_id)) {
+        console.warn(`⚠️ Duplicate exam_id removed: ${exam.exam_id}`);
+        return false;
+      }
+      seen.add(exam.exam_id);
+      return true;
+    });
+  }, [data]);
+
   const categorizedData = useMemo(() => {
+    const now = new Date();
     return {
-      active: data.filter((exam: ExamData) => {
+      active: uniqueData.filter((exam: ExamData) => {
         const startTime = new Date(exam.ognoo);
-        const endTime = new Date(
-          startTime.getTime() + exam.exam_minute * 60000
-        );
+        const endTime = new Date(startTime.getTime() + exam.exam_minute * 60000);
         const isPurchased = exam.ispurchased === 1;
         const isFree = exam.ispaydescr === "Төлбөргүй";
         return now >= startTime && now <= endTime && (isFree || isPurchased);
       }),
-      free: data.filter((exam: ExamData) => exam.ispaydescr === "Төлбөргүй"),
-      paid: data.filter(
-        (exam: ExamData) =>
-          exam.ispaydescr === "Төлбөртэй" && exam.ispurchased === 0
+      free: uniqueData.filter((exam: ExamData) => exam.ispaydescr === "Төлбөргүй"),
+      paid: uniqueData.filter(
+        (exam: ExamData) => exam.ispaydescr === "Төлбөртэй" && exam.ispurchased === 0
       ),
-      expired: data.filter((exam: ExamData) => {
+      expired: uniqueData.filter((exam: ExamData) => {
         const startTime = new Date(exam.ognoo);
-        const endTime = new Date(
-          startTime.getTime() + exam.exam_minute * 60000
-        );
+        const endTime = new Date(startTime.getTime() + exam.exam_minute * 60000);
         return now > endTime;
       }),
+      now,
     };
-  }, [data, now]);
+  }, [uniqueData]);
 
-  // Search + Category filter
   const filteredData = useMemo(() => {
     let exams: ExamData[] = [];
-    if (selectedCategory === "all") exams = data;
+    if (selectedCategory === "all") exams = uniqueData;
     else exams = categorizedData[selectedCategory];
 
     if (!searchTerm.trim()) return exams;
@@ -79,12 +83,12 @@ export default function ExamListPage() {
     return exams.filter((exam: ExamData) =>
       exam.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [data, categorizedData, searchTerm, selectedCategory]);
+  }, [uniqueData, categorizedData, searchTerm, selectedCategory]);
 
   const clearSearch = () => setSearchTerm("");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br py-6 sm:py-8 lg:py-10 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 py-6 sm:py-8 lg:py-10 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-6 sm:mb-8 lg:mb-10">
@@ -173,7 +177,7 @@ export default function ExamListPage() {
               <CategoryBadge
                 active={selectedCategory === "all"}
                 onClick={() => setSelectedCategory("all")}
-                count={data.length}
+                count={uniqueData.length}
                 label="Бүгд"
                 variant="all"
               />
@@ -220,7 +224,7 @@ export default function ExamListPage() {
           {isPending ? (
             Array.from({ length: 6 }).map((_, i) => (
               <div
-                key={i}
+                key={`skeleton-${i}`}
                 className={cn(
                   "rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-gray-800",
                   "bg-white dark:bg-gray-900 shadow-md animate-pulse"
@@ -240,22 +244,28 @@ export default function ExamListPage() {
                 </div>
               </div>
             ))
-          ) : filteredData.length === 0 ? (
+          ) : isEmptyResponse || filteredData.length === 0 ? (
             <Card className="col-span-full p-8 sm:p-12 text-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl">
               <div className="max-w-md mx-auto space-y-4">
-                <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center animate-bounce">
                   <Search
-                    size={32}
-                    className="text-gray-400 dark:text-gray-600"
+                    size={36}
+                    className="text-blue-500 dark:text-blue-400"
                   />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    {searchTerm ? "Хайлт олдсонгүй" : "Шалгалт олдсонгүй"}
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                    {searchTerm 
+                      ? "Хайлт олдсонгүй" 
+                      : isEmptyResponse 
+                      ? "Одоогоор шалгалт байхгүй байна" 
+                      : "Шалгалт олдсонгүй"}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {searchTerm
                       ? "Та өөр түлхүүр үгээр хайж үзнэ үү"
+                      : isEmptyResponse
+                      ? "Тун удахгүй шинэ шалгалтууд нэмэгдэх болно"
                       : "Одоогоор шалгалт бүртгэгдээгүй байна"}
                   </p>
                 </div>
@@ -272,7 +282,7 @@ export default function ExamListPage() {
             </Card>
           ) : (
             filteredData.map((exam: ExamData) => (
-              <ExamCard key={exam.exam_id} exam={exam} now={now} />
+              <ExamCard key={exam.exam_id} exam={exam} now={categorizedData.now} />
             ))
           )}
         </div>

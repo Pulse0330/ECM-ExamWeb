@@ -10,10 +10,12 @@ export default function ServerDate() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const { setServerDate, getAdjustedTime } = useServerDateStore();
 
-  // Fetch server date every 30 seconds and store in Zustand
+  // Fetch server date only on mount/refresh (no refetchInterval)
   const { data: serverDateString } = useQuery({
     queryKey: ["serverTime"],
     queryFn: getServerDate,
+    staleTime: Infinity, // Data never becomes stale
+    gcTime: Infinity, // Keep in cache forever
   });
 
   // Update Zustand store when server date arrives
@@ -54,7 +56,7 @@ export default function ServerDate() {
   const seconds = String(currentTime.getUTCSeconds()).padStart(2, "0");
 
   return (
-    <div className="inline-flex items-center gap-3 px-4 py-2 ">
+    <div className="inline-flex items-center gap-3 px-4 py-2">
       {/* Date Section */}
       <div className="flex items-center gap-2">
         <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -95,7 +97,8 @@ export function ServerDateCompact() {
   const { data: serverDateString } = useQuery({
     queryKey: ["serverTime"],
     queryFn: getServerDate,
-    refetchInterval: 30000,
+    staleTime: Infinity,
+    gcTime: Infinity,
   });
 
   useEffect(() => {
@@ -142,7 +145,8 @@ export function ServerDateOnly() {
   const { data: serverDateString } = useQuery({
     queryKey: ["serverTime"],
     queryFn: getServerDate,
-    refetchInterval: 30000,
+    staleTime: Infinity,
+    gcTime: Infinity,
   });
 
   useEffect(() => {

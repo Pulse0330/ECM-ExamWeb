@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -9,11 +9,8 @@ import {
   Clock,
   BookOpen,
   ArrowRight,
-  Sparkles,
   CheckCircle2,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { ExamData } from "@/types/sorillists";
 
@@ -23,20 +20,28 @@ interface ExamCardProps {
 
 export default function ExamCard({ exam }: ExamCardProps) {
   const router = useRouter();
-  const [isHovered, setIsHovered] = useState(false);
-  const [questionCount, setQuestionCount] = useState<number | "">("");
 
-  const examDate = new Date(exam.sorildate).toLocaleString("mn-MN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formatMongolianDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const months = [
+      "1-р сар", "2-р сар", "3-р сар", "4-р сар",
+      "5-р сар", "6-р сар", "7-р сар", "8-р сар",
+      "9-р сар", "10-р сар", "11-р сар", "12-р сар"
+    ];
+    
+    const year = date.getFullYear();
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    
+    return `${year} оны ${month} ${day}, ${hours}:${minutes}`;
+  };
+
+  const examDate = formatMongolianDate(exam.sorildate);
 
   const isStartable = exam.flag_name === "Эхлүүлэх";
   const isFinished = exam.flag_name === "Үр дүн";
-  const isLocked = !isStartable && !isFinished;
 
   const getCardStyle = () => {
     if (isStartable)
@@ -48,19 +53,11 @@ export default function ExamCard({ exam }: ExamCardProps) {
 
   const handleStart = () => {
     if (!isStartable) return;
-
-    const finalCount =
-      questionCount === "" || Number(questionCount) <= 0
-        ? exam.que_cnt
-        : Number(questionCount);
-
-    router.push(`/soril/${exam.exam_id}?count=${finalCount}`);
+    router.push(`/soril/${exam.exam_id}?count=${exam.que_cnt}`);
   };
 
   return (
     <Card
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       className={cn(
         "group relative overflow-hidden rounded-2xl border transition-all duration-500 flex flex-col backdrop-blur-sm",
         getCardStyle(),
@@ -82,7 +79,6 @@ export default function ExamCard({ exam }: ExamCardProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
         {/* Status Badge */}
-
         {isFinished && (
           <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-white/90 rounded-full p-1.5">
             <CheckCircle2 size={16} className="text-emerald-600" />
@@ -118,40 +114,6 @@ export default function ExamCard({ exam }: ExamCardProps) {
             value={`${exam.minut} минут`}
           />
         </div>
-
-        {/* 👇 Шинэ хэсэг — хэрэглэгчийн оруулах input */}
-        {isStartable && (
-          <div className="mt-3">
-            <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-              Хэдэн асуултанд хариулах вэ?
-            </label>
-            <Input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder={`${exam.que_cnt}`}
-              value={questionCount}
-              onChange={(e) => {
-                const val = e.target.value;
-
-                // зөвхөн эерэг бүхэл тоо шалгах regex
-                if (/^\d*$/.test(val)) {
-                  const num = Number(val);
-                  if (val === "" || (num >= 1 && num <= exam.que_cnt)) {
-                    setQuestionCount(val === "" ? "" : num);
-                  }
-                }
-              }}
-              onKeyDown={(e) => {
-                // -, e, +, . зэрэг тэмдэг оруулахаас сэргийлнэ
-                if (["e", "E", "+", "-", "."].includes(e.key)) {
-                  e.preventDefault();
-                }
-              }}
-              className="mt-1 border-gray-300 dark:border-gray-700"
-            />
-          </div>
-        )}
 
         <button
           onClick={handleStart}

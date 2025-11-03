@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import ServerDate from "@/components/serverdate";
+
 const cn = (...classes: (string | undefined)[]) =>
   classes.filter(Boolean).join(" ");
 
@@ -248,9 +248,7 @@ export default function Home() {
               </div>
             </MagicHeroCard>
           )}
-          <div className="fixed top-2 right-4 z-50 backdrop-blur-md px-3 py-1 rounded-lg shadow">
-            <ServerDate />
-          </div>
+        
 
           {/* Статистик */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">

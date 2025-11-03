@@ -8,7 +8,6 @@ import { getSorillists } from "@/lib/api";
 import type { ApiSorillistsResponse, ExamData } from "@/types/sorillists";
 import ExamCard from "./examcard";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -28,24 +27,37 @@ export default function ExamListPage() {
   });
 
   const data: ExamData[] = queryData?.RetData || [];
-  const now = new Date();
+
+  // ✅ Remove duplicates from raw data
+  const uniqueData = useMemo(() => {
+    const seen = new Set<number>();
+    return data.filter((exam) => {
+      if (seen.has(exam.exam_id)) {
+        console.warn(`⚠️ Duplicate exam_id removed: ${exam.exam_id}`);
+        return false;
+      }
+      seen.add(exam.exam_id);
+      return true;
+    });
+  }, [data]);
 
   const categorized = useMemo(() => {
+    const now = new Date();
     return {
-      upcoming: data.filter((e) => new Date(e.sorildate) > now),
-      past: data.filter((e) => new Date(e.sorildate) <= now),
+      upcoming: uniqueData.filter((e) => new Date(e.sorildate) > now),
+      past: uniqueData.filter((e) => new Date(e.sorildate) <= now),
     };
-  }, [data, now]);
+  }, [uniqueData]);
 
   const filtered = useMemo(() => {
-    let list = data;
+    let list = uniqueData;
     if (category !== "all") list = categorized[category];
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       return list.filter((e) => e.soril_name.toLowerCase().includes(q));
     }
     return list;
-  }, [data, categorized, category, searchTerm]);
+  }, [uniqueData, categorized, category, searchTerm]);
 
   const clearSearch = () => setSearchTerm("");
 
@@ -138,7 +150,7 @@ export default function ExamListPage() {
               <CategoryBadge
                 active={category === "all"}
                 onClick={() => setCategory("all")}
-                count={data.length}
+                count={uniqueData.length}
                 label="Бүгд"
                 variant="all"
               />
@@ -146,7 +158,7 @@ export default function ExamListPage() {
                 active={category === "upcoming"}
                 onClick={() => setCategory("upcoming")}
                 count={categorized.upcoming.length}
-                label="Идэвхтэй байгаа "
+                label="Идэвхтэй "
                 variant="upcoming"
                 icon={<Calendar size={14} />}
               />
@@ -169,7 +181,7 @@ export default function ExamListPage() {
           {isPending ? (
             Array.from({ length: 6 }).map((_, i) => (
               <div
-                key={i}
+                key={`skeleton-${i}`}
                 className={cn(
                   "rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800",
                   "bg-white dark:bg-gray-900 shadow-md animate-pulse"
