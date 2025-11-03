@@ -13,6 +13,7 @@ import {
   Calendar,
   DollarSign,
   ExternalLink,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -248,7 +249,6 @@ export default function Home() {
               </div>
             </MagicHeroCard>
           )}
-        
 
           {/* Статистик */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
@@ -515,11 +515,9 @@ export default function Home() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                            Үнэлгээ
-                          </p>
-                          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
-                            {plan.rate} ⭐
+                          <p className="text-xs ">Үнэлгээ</p>
+                          <span className="text-sm font-bold text-black">
+                            {plan.rate}
                           </span>
                         </div>
                       </div>
@@ -543,9 +541,9 @@ export default function Home() {
                 .map((plan) => (
                   <div
                     key={plan.planid}
-                    className="group relative bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-100 dark:border-gray-800/50 hover:border-green-200 dark:hover:border-green-800/50 shadow-md hover:shadow-xl hover:shadow-blue-100/50 dark:hover:shadow-blue-900/30 transition-all duration-300 cursor-pointer overflow-hidden"
+                    className="group relative rounded-xl p-5 border  shadow-md hover:shadow-xl hover:shadow-blue-100/50 dark:hover:shadow-blue-900/30 transition-all duration-300 cursor-pointer overflow-hidden"
                   >
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-lg group-hover:scale-150 transition-transform duration-500"></div>
+                    <div className="absolute top-0 right-0 w-20 h-20  transition-transform duration-500"></div>
 
                     <div className="relative">
                       <div className="flex items-start justify-between mb-4">
@@ -553,8 +551,9 @@ export default function Home() {
                           {plan.title}
                         </h3>
                         <div className="flex-shrink-0 px-2.5 py-1  border-1 border-green-400 rounded-lg shadow-md">
-                          <span className="text-xs font-bold text-white">
-                            {plan.rate} ⭐
+                          <span className="flex gap-1 text-xs font-bold ">
+                            {plan.rate}
+                            <Star className="size-4 text-amber-300 fill-amber-300" />
                           </span>
                         </div>
                       </div>

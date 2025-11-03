@@ -35,28 +35,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const cookieValue = request.cookies.get("auth-storage")?.value;
+  const { pathname } = request.nextUrl;
 
-  let token: string | null = null;
+  // 🧠 Cookie-аас currentExam утгыг авах
+  const currentExam = request.cookies.get("currentExam")?.value;
 
-  if (cookieValue) {
-    try {
-      const parsed = JSON.parse(cookieValue);
-      token = parsed?.state?.token ?? null;
-    } catch (error) {
-      console.error("Cookie parse error:", error);
-      token = null;
-    }
+  // 🟢 Хэрвээ хэрэглэгч /exam/[id] руу орж байвал cookie хадгалах
+  if (pathname.startsWith("/exam/")) {
+    const response = NextResponse.next();
+    response.cookies.set("currentExam", pathname, { path: "/" });
+    return response;
   }
 
+  // 🔴 Хэрвээ currentExam байгаа үед, өөр хуудас руу оролдох гэж байвал буцаах
+  if (currentExam && !pathname.startsWith("/exam")) {
+    return NextResponse.redirect(new URL(currentExam, request.url));
+  }
 
-
-  // Токен байгаа бол үргэлжлүүлэх
+  // 🟢 Бусад бүх тохиолдолд үргэлжлүүлэх
   return NextResponse.next();
 }
 
+// ⚙️ Middleware аль замуудад ажиллахыг зааж өгнө
 export const config = {
   matcher: [
-    "/((?!api/|_next/|favicon.ico|login|signup|not-found|gloval.css|public/).*)",
+    "/((?!api/|_next/|favicon.ico|login|signup|not-found|global.css|public/).*)",
   ],
 };

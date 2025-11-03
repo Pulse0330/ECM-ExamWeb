@@ -16,13 +16,8 @@ import DragAndDropWrapper from "@/components/question/DragAndDropWrapper";
 import MatchingByLineWrapper from "@/components/question/matchingWrapper";
 import MiniMap from "@/app/exam/minimap";
 import SubmitExamButtonWithDialog from "@/components/question/Submit";
-import { AdvancedExamProctor } from "@/components/question/examguard"; 
-import {
-  Flag,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { AdvancedExamProctor } from "@/components/question/examguard";
+import { Flag, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { getExamById, saveExamAnswer, finishExam } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useExamStore } from "@/stores/examStore";
@@ -43,7 +38,9 @@ export default function SorilPage() {
   const { setTestId } = useExamStore();
   const requestedCount = searchParams.get("count");
 
-  const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersType>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersType>(
+    {}
+  );
   const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -91,9 +88,15 @@ export default function SorilPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const questions = useMemo(() => examData?.Questions || [], [examData?.Questions]);
+  const questions = useMemo(
+    () => examData?.Questions || [],
+    [examData?.Questions]
+  );
   const answers = useMemo(() => examData?.Answers || [], [examData?.Answers]);
-  const examInfo = useMemo(() => examData?.ExamInfo || [], [examData?.ExamInfo]);
+  const examInfo = useMemo(
+    () => examData?.ExamInfo || [],
+    [examData?.ExamInfo]
+  );
 
   const displayQuestions = useMemo(() => {
     if (!requestedCount) return questions;
@@ -147,7 +150,8 @@ export default function SorilPage() {
         if (queTypeId === 1) {
           answerIdValue = (answerId as number) || 0;
         } else if (queTypeId === 2 || queTypeId === 3) {
-          answerIdValue = Array.isArray(answerId) && answerId.length > 0 ? answerId[0] : 0;
+          answerIdValue =
+            Array.isArray(answerId) && answerId.length > 0 ? answerId[0] : 0;
         } else if (queTypeId === 4) {
           answerText = typeof answerId === "string" ? answerId : "";
           answerIdValue = 0;
@@ -272,7 +276,7 @@ export default function SorilPage() {
       });
 
       setTimeout(() => {
-        router.push(`/sorildetail/${testId}-${id}`);
+        router.push(`/examdetail/${testId}-${id}`);
       }, 2000);
     } catch (error) {
       console.error("❌ Submit failed:", error);
@@ -304,7 +308,8 @@ export default function SorilPage() {
   }, [selectedAnswers]);
 
   const currentQuestion = displayQuestions[currentQuestionIndex];
-  const isCurrentAnswered = currentQuestion && !!selectedAnswers[currentQuestion.question_id];
+  const isCurrentAnswered =
+    currentQuestion && !!selectedAnswers[currentQuestion.question_id];
 
   const examInfoCard = useMemo(() => {
     if (!examInfo.length) return null;
@@ -323,7 +328,10 @@ export default function SorilPage() {
         <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
           <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
             <span className="mr-1">📝</span>
-            <span className="font-semibold">{displayQuestions.length}</span> асуулт
+            <span className="font-semibold">
+              {displayQuestions.length}
+            </span>{" "}
+            асуулт
           </div>
           <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
             <span className="mr-1">📊</span>
@@ -331,7 +339,9 @@ export default function SorilPage() {
           </div>
           <div className="px-3 py-1.5 bg-green-100 dark:bg-green-900/40 rounded-lg backdrop-blur-sm">
             <span className="mr-1">⏱️</span>
-            <span className="font-semibold text-green-700 dark:text-green-300">Хугацаагүй</span>
+            <span className="font-semibold text-green-700 dark:text-green-300">
+              Хугацаагүй
+            </span>
           </div>
         </div>
       </div>
@@ -376,13 +386,18 @@ export default function SorilPage() {
                 <span className="font-semibold">
                   Асуулт {currentQuestionIndex + 1}/{displayQuestions.length}
                 </span>
-                <span className="text-muted-foreground">{answeredQuestionsCount} хариулсан</span>
+                <span className="text-muted-foreground">
+                  {answeredQuestionsCount} хариулсан
+                </span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-200"
                   style={{
-                    width: `${((currentQuestionIndex + 1) / displayQuestions.length) * 100}%`,
+                    width: `${
+                      ((currentQuestionIndex + 1) / displayQuestions.length) *
+                      100
+                    }%`,
                   }}
                 />
               </div>
@@ -400,10 +415,15 @@ export default function SorilPage() {
                 bookmarks={bookmarks}
                 currentQuestionIndex={currentQuestionIndex}
                 onJump={(qid) => {
-                  const element = document.getElementById(`question-container-${qid}`);
+                  const element = document.getElementById(
+                    `question-container-${qid}`
+                  );
                   if (element) {
                     const yOffset = -80;
-                    const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    const y =
+                      element.getBoundingClientRect().top +
+                      window.pageYOffset +
+                      yOffset;
                     window.scrollTo({ top: y, behavior: "smooth" });
                   }
                 }}
@@ -488,7 +508,9 @@ export default function SorilPage() {
               bookmarks={bookmarks}
               currentQuestionIndex={currentQuestionIndex}
               onJump={(qid) => {
-                const index = displayQuestions.findIndex((q) => q.question_id === qid);
+                const index = displayQuestions.findIndex(
+                  (q) => q.question_id === qid
+                );
                 if (index >= 0) handleJumpToQuestion(index);
               }}
             />
@@ -516,7 +538,9 @@ export default function SorilPage() {
                   : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
               }`}
             >
-              {currentQuestionIndex === displayQuestions.length - 1 ? "🏁 Дуусгах" : "Дараах"}
+              {currentQuestionIndex === displayQuestions.length - 1
+                ? "🏁 Дуусгах"
+                : "Дараах"}
               <ChevronRight size={18} className="ml-1" />
             </Button>
           </div>
@@ -558,7 +582,11 @@ const QuestionItem = React.memo((props: any) => {
   return (
     <div
       id={`question-container-${question.question_id}`}
-      className={isMobile ? "p-4" : "p-4 sm:p-6 border rounded-xl shadow-sm bg-white dark:bg-slate-900 scroll-mt-20"}
+      className={
+        isMobile
+          ? "p-4"
+          : "p-4 sm:p-6 border rounded-xl shadow-sm bg-white dark:bg-slate-900 scroll-mt-20"
+      }
     >
       <div className="flex justify-between items-start gap-3 mb-4">
         <h2 className="flex-1 text-base sm:text-lg font-semibold min-w-0">
@@ -598,7 +626,9 @@ const QuestionItem = React.memo((props: any) => {
             questionText={question.question_name}
             answers={answers}
             mode="exam"
-            selectedAnswers={Array.isArray(selectedAnswer) ? selectedAnswer : []}
+            selectedAnswers={
+              Array.isArray(selectedAnswer) ? selectedAnswer : []
+            }
             onAnswerChange={onMultiAnswerChange}
           />
         )}
@@ -607,7 +637,9 @@ const QuestionItem = React.memo((props: any) => {
           <FillInTheBlankQuestionShadcn
             questionId={question.question_id.toString()}
             questionText={question.question_name}
-            onAnswerChange={(text: string) => onFillInTheBlankChange(question.question_id, text)}
+            onAnswerChange={(text: string) =>
+              onFillInTheBlankChange(question.question_id, text)
+            }
           />
         )}
 
@@ -620,7 +652,11 @@ const QuestionItem = React.memo((props: any) => {
             mode="exam"
             onOrderChange={(orderedIds) => {
               onDragDropChange(question.question_id, orderedIds);
-              saveAnswerToAPI(question.question_id, orderedIds, question.que_type_id);
+              saveAnswerToAPI(
+                question.question_id,
+                orderedIds,
+                question.que_type_id
+              );
             }}
           />
         )}
@@ -633,7 +669,11 @@ const QuestionItem = React.memo((props: any) => {
             examId={examId}
             userId={userId}
             onMatchChange={(matches) => {
-              saveAnswerToAPI(question.question_id, matches, question.que_type_id);
+              saveAnswerToAPI(
+                question.question_id,
+                matches,
+                question.que_type_id
+              );
             }}
           />
         )}

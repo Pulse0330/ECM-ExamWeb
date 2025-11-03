@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ExamData } from "@/types/examlists";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface ExamCardProps {
   exam: ExamData;
@@ -55,11 +56,8 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
     const isPayable = exam.ispaydescr === "Төлбөртэй" && !isPurchased;
     const isUpcoming = now < startTime;
     const isFinished = now > endTime;
-    // Free exams and purchased exams can ALWAYS be accessed (even after time ends)
     const canAccess = isFree || isPurchased;
-    // Active means: started AND user has access (ignore if finished)
     const isActive = now >= startTime && canAccess && !isFinished;
-    // Can take exam anytime if you have access and it's not upcoming
     const canTakeExam = !isUpcoming && canAccess;
     const isLocked = isUpcoming || isPayable;
     return {
@@ -104,7 +102,6 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       countdownClasses =
         "text-red-600 bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700/50";
     } else if (isUpcoming && canAccess) {
-      // Free or purchased exam that hasn't started yet
       const diff = startTime.getTime() - now.getTime();
       const minutes = Math.floor(diff / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
@@ -116,7 +113,6 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       countdownClasses =
         "text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700/50";
     } else if (isUpcoming && !canAccess) {
-      // Paid exam, not purchased, not started
       const diff = startTime.getTime() - now.getTime();
       const minutes = Math.floor(diff / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
@@ -128,19 +124,17 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       countdownClasses =
         "text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700/50";
     } else if (isActive) {
-      // Currently live
       const diff = endTime.getTime() - now.getTime();
       const minutes = Math.floor(diff / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
       countdown = `${minutes}м ${seconds}с`;
-      statusText = "LIVE";
+      statusText = "Одоо авж байна";
       statusBadgeClass =
         "bg-gradient-to-r from-emerald-500 to-green-600 animate-pulse shadow-lg shadow-emerald-500/40";
       buttonText = "Шалгалт эхлүүлэх";
       countdownClasses =
         "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700/50";
     } else if (isFinished && canTakeExam) {
-      // Finished but can still take (free or purchased)
       statusText = "БОЛОМЖТОЙ";
       statusBadgeClass =
         "bg-gradient-to-r from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/30";
@@ -149,7 +143,6 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
       countdownClasses =
         "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-300 dark:border-indigo-700/50";
     } else if (isFinished) {
-      // Finished and cannot access
       statusText = "ДУУССАН";
       statusBadgeClass = "bg-gradient-to-r from-gray-500 to-gray-600";
       buttonText = "Үр дүн харах";
@@ -187,9 +180,7 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
     if (isPayable) {
       router.push(`/payment/${exam.exam_id}`);
     } else if (canTakeExam) {
-      // Clear any saved answers before starting exam
       try {
-        // Clear localStorage for this specific exam
         const examStorageKey = `exam_${exam.exam_id}_answers`;
         const examStateKey = `exam_${exam.exam_id}_state`;
         const examTimeKey = `exam_${exam.exam_id}_time`;
@@ -198,7 +189,6 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
         localStorage.removeItem(examStateKey);
         localStorage.removeItem(examTimeKey);
 
-        // Also clear any other exam-related data that might be stored
         Object.keys(localStorage).forEach((key) => {
           if (key.includes(`exam_${exam.exam_id}`)) {
             localStorage.removeItem(key);
@@ -208,7 +198,6 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
         console.error("Error clearing exam data:", error);
       }
 
-      // Navigate to exam page
       router.push(`/exam/${exam.exam_id}`);
     }
   };
@@ -398,38 +387,34 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
           </div>
         )}
 
-        {/* Action Button */}
-        <button
+        {/* Action Button - Shadcn UI Button */}
+        <Button
           onClick={(e) => {
             e.stopPropagation();
             handleAction();
           }}
           disabled={isLocked}
+          size="lg"
           className={cn(
-            "w-full text-sm sm:text-base font-bold py-3 sm:py-3.5 lg:py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg relative overflow-hidden group/btn",
-            isActive
-              ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:shadow-xl"
-              : isPayable
-              ? "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-red-500/40 hover:shadow-red-500/60 hover:shadow-xl"
-              : isFinished && canTakeExam
-              ? "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-indigo-500/40 hover:shadow-indigo-500/60 hover:shadow-xl"
-              : "bg-gray-200 cursor-not-allowed text-gray-500 dark:bg-gray-800 dark:text-gray-500",
+            "w-full text-sm sm:text-base font-bold shadow-lg group/btn",
+            isActive &&
+              "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:shadow-xl",
+            isPayable &&
+              "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/40 hover:shadow-red-500/60 hover:shadow-xl",
+            isFinished &&
+              canTakeExam &&
+              "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-indigo-500/40 hover:shadow-indigo-500/60 hover:shadow-xl",
             (canTakeExam || isPayable) && "hover:scale-[1.02]"
           )}
         >
-          <span className="relative z-10 flex items-center gap-1.5 sm:gap-2">
-            <span className="truncate">{countdownData.buttonText}</span>
-            {(canTakeExam || isPayable) && (
-              <ArrowRight
-                size={18}
-                className="transition-transform duration-300 group-hover/btn:translate-x-1 flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5"
-              />
-            )}
-          </span>
+          <span className="truncate">{countdownData.buttonText}</span>
           {(canTakeExam || isPayable) && (
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+            <ArrowRight
+              size={18}
+              className="transition-transform duration-300 group-hover/btn:translate-x-1 flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5"
+            />
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

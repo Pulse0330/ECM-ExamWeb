@@ -3,6 +3,7 @@
 import React, { useId } from "react";
 import { motion } from "framer-motion";
 import { Shield, Sparkles, Zap } from "lucide-react";
+import Image from "next/image";
 
 const data = [
   {
@@ -33,28 +34,38 @@ export default function AnimationComponanet() {
 
   return (
     <motion.div
-      initial={{ x: "-100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "-100%", opacity: 0 }}
-      transition={{ type: "spring", stiffness: 70, damping: 20 }}
+      initial={{ opacity: 0, x: "-100%" }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: "-100%" }}
+      transition={{
+        type: "spring",
+        stiffness: 100,
+        damping: 25,
+        mass: 0.8,
+      }}
       className="hidden md:flex flex-1 relative items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700 overflow-hidden"
     >
       {/* Floating circles */}
       {bublePosition.map((el, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full bg-white/10 dark:bg-white/5"
+          className="absolute rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-sm"
           style={{
             width: `${50 + i * 30}px`,
             height: `${50 + i * 30}px`,
             top: `${el.top}%`,
             left: `${el.left}%`,
           }}
-          animate={{ y: ["0%", "10%", "0%"], x: ["0%", "5%", "0%"] }}
+          animate={{
+            y: ["0%", "10%", "0%"],
+            x: ["0%", "5%", "0%"],
+            rotate: [0, 180, 360],
+          }}
           transition={{
             duration: 4 + i,
             repeat: Infinity,
             repeatType: "loop",
+            ease: "easeInOut",
           }}
         />
       ))}
@@ -63,18 +74,9 @@ export default function AnimationComponanet() {
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.8 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
         className="relative z-10 text-center px-8 max-w-lg space-y-8"
       >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.5 }}
-          className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-lg rounded-2xl mb-4 shadow-2xl"
-        >
-          <Shield className="w-10 h-10 text-white dark:text-gray-200" />
-        </motion.div>
-
         <h1 className="text-5xl font-bold tracking-tight leading-tight text-white dark:text-gray-100">
           Тавтай морилно уу
         </h1>
@@ -86,8 +88,12 @@ export default function AnimationComponanet() {
           {data.map((card, idx) => (
             <motion.div
               key={idx}
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center gap-4 p-4 bg-white/10 dark:bg-gray-800/40 backdrop-blur-md rounded-xl border border-white/20 dark:border-gray-700 cursor-pointer"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + idx * 0.1 }}
+              whileHover={{ scale: 1.05, translateY: -5 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center gap-4 p-4 bg-white/10 dark:bg-gray-800/40 backdrop-blur-md rounded-xl border border-white/20 dark:border-gray-700 cursor-pointer transition-shadow hover:shadow-xl"
             >
               <div
                 className={`flex-shrink-0 w-12 h-12 ${card.bg} rounded-lg flex items-center justify-center`}

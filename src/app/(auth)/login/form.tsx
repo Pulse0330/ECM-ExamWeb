@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Shield } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { loginRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -56,22 +56,21 @@ export default function LoginPage() {
       <AnimationComponanet />
 
       <motion.div
-        initial={{ x: "100%", opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: "100%", opacity: 0 }}
-        transition={{ type: "spring", stiffness: 70, damping: 20 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
         className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-6 py-12"
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
-        >
+        <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center space-y-2 mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
-              <Shield className="w-8 h-8 text-white" />
+            <div className="inline-flex items-center justify-center w-25 h-25 rounded-2xl mb-4">
+              <img
+                src="/images/ECM LOGO.png"
+                alt="ECM Logo"
+                className="object-contain w-full h-full"
+              />
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Нэвтрэх</h1>
             <p className="text-sm text-muted-foreground">
@@ -94,11 +93,19 @@ export default function LoginPage() {
                   })}
                   disabled={isPending}
                 />
-                {errors.username && (
-                  <p className="text-sm text-destructive mt-1.5">
-                    {errors.username.message}
-                  </p>
-                )}
+                <AnimatePresence mode="wait">
+                  {errors.username && (
+                    <motion.p
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-sm text-destructive mt-1.5"
+                    >
+                      {errors.username.message}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </Field>
 
               {/* Password Field */}
@@ -131,11 +138,19 @@ export default function LoginPage() {
                     )}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive mt-1.5">
-                    {errors.password.message}
-                  </p>
-                )}
+                <AnimatePresence mode="wait">
+                  {errors.password && (
+                    <motion.p
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-sm text-destructive mt-1.5"
+                    >
+                      {errors.password.message}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </Field>
 
               <Field orientation="horizontal" className="pt-2">
@@ -177,7 +192,7 @@ export default function LoginPage() {
               </p>
             </FieldGroup>
           </form>
-        </motion.div>
+        </div>
       </motion.div>
     </div>
   );
