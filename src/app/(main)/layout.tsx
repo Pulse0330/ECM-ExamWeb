@@ -13,8 +13,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <IHeader />
       </div>
       <main>
-        <FixedScrollButton/>
-          {children}</main>
+        <FixedScrollButton />
+        {children}
+      </main>
     </div>
   );
 }

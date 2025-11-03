@@ -31,6 +31,7 @@ import type { ApiExamResponse, Question, Answer } from "@/types/exam";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getTestIdFromResponse, isExamSubmitSuccess } from "@/types/examfinish";
+import { AdvancedExamProctor } from "@/components/question/examguard";
 
 type SelectedAnswersType = {
   [key: number]: number | number[] | string | Record<string, string> | null;
@@ -44,13 +45,16 @@ export default function ExamPage() {
   const { setTestId } = useExamStore();
   const requestedCount = searchParams.get("count");
 
-  const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersType>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<SelectedAnswersType>(
+    {}
+  );
   const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isAutoSubmitting, setIsAutoSubmitting] = useState(false);
 
   const saveQueueRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const questionContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: examData } = useQuery<ApiExamResponse>({
     queryKey: ["exam", userId, id],
@@ -59,9 +63,8 @@ export default function ExamPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Load previous answers
   useEffect(() => {
-    if (examData?.ChoosedAnswer?.length) {
+    if (examData?.ChoosedAnswer && examData.ChoosedAnswer.length > 0) {
       const prevAnswers: SelectedAnswersType = {};
       examData.ChoosedAnswer.forEach((item) => {
         if (item.QueID && item.AnsID) {
@@ -72,7 +75,6 @@ export default function ExamPage() {
     }
   }, [examData?.ChoosedAnswer]);
 
-  // Scroll handler with RAF optimization
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
@@ -92,9 +94,16 @@ export default function ExamPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const questions = useMemo(() => examData?.Questions || [], [examData?.Questions]);
+  const questions = useMemo(
+    () => examData?.Questions || [],
+    [examData?.Questions]
+  );
+
   const answers = useMemo(() => examData?.Answers || [], [examData?.Answers]);
-  const examInfo = useMemo(() => examData?.ExamInfo || [], [examData?.ExamInfo]);
+  const examInfo = useMemo(
+    () => examData?.ExamInfo || [],
+    [examData?.ExamInfo]
+  );
 
   const displayQuestions = useMemo(() => {
     if (!requestedCount) return questions;
@@ -148,7 +157,8 @@ export default function ExamPage() {
         if (queTypeId === 1) {
           answerIdValue = (answerId as number) || 0;
         } else if (queTypeId === 2 || queTypeId === 3) {
-          answerIdValue = Array.isArray(answerId) && answerId.length > 0 ? answerId[0] : 0;
+          answerIdValue =
+            Array.isArray(answerId) && answerId.length > 0 ? answerId[0] : 0;
         } else if (queTypeId === 4) {
           answerText = typeof answerId === "string" ? answerId : "";
           answerIdValue = 0;
@@ -172,7 +182,37 @@ export default function ExamPage() {
     },
     [userId, id]
   );
+  const handleSubmitExam = useCallback(async () => {
+    if (!examInfo.length) return;
 
+    try {
+      const response = await finishExam(Number(userId), examInfo[0]);
+
+      if (!isExamSubmitSuccess(response)) {
+        throw new Error("Шалгалт дуусгахад алдаа гарлаа");
+      }
+
+      const testId = getTestIdFromResponse(response);
+      if (!testId) throw new Error("Test ID олдсонгүй");
+
+      setTestId(testId);
+
+      toast.success("✅ Сорил амжилттай дууслаа", {
+        duration: 2000,
+      });
+
+      setTimeout(() => {
+        router.push(`/examdetail/${testId}-${id}`);
+      }, 2000);
+    } catch (error) {
+      console.error("❌ Submit failed:", error);
+      toast.error("Сорил дуусгахад алдаа гарлаа");
+    }
+  }, [examInfo, userId, id, router, setTestId]);
+
+  const handleLogout = useCallback(() => {
+    router.push("/home");
+  }, [router]);
   const debouncedSaveToAPI = useCallback(
     (questionId: number, answerId: any, queTypeId: number) => {
       const existingTimeout = saveQueueRef.current.get(questionId);
@@ -228,6 +268,9 @@ export default function ExamPage() {
 
   const handleJumpToQuestion = useCallback((index: number) => {
     setCurrentQuestionIndex(index);
+    if (questionContainerRef.current) {
+      questionContainerRef.current.scrollTop = 0;
+    }
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
@@ -249,6 +292,7 @@ export default function ExamPage() {
     }
   }, [currentQuestionIndex, handleJumpToQuestion]);
 
+  // 🔥 AUTO SUBMIT ON TIME UP
   const handleTimeUp = useCallback(async () => {
     if (isAutoSubmitting || !examInfo.length) return;
 
@@ -260,6 +304,8 @@ export default function ExamPage() {
     });
 
     try {
+      console.log("🔄 Auto-submitting exam...");
+
       const response = await finishExam(Number(userId), examInfo[0]);
 
       if (!isExamSubmitSuccess(response)) {
@@ -275,6 +321,7 @@ export default function ExamPage() {
         duration: 2000,
       });
 
+      // Navigate to results
       setTimeout(() => {
         router.push(`/examdetail/${testId}-${id}`);
       }, 2000);
@@ -288,7 +335,6 @@ export default function ExamPage() {
     }
   }, [examInfo, userId, id, router, setTestId, isAutoSubmitting]);
 
-  // Cleanup timeouts
   useEffect(() => {
     return () => {
       saveQueueRef.current.forEach((timeout) => clearTimeout(timeout));
@@ -308,10 +354,11 @@ export default function ExamPage() {
   }, [selectedAnswers]);
 
   const currentQuestion = displayQuestions[currentQuestionIndex];
-  const isCurrentAnswered = currentQuestion && !!selectedAnswers[currentQuestion.question_id];
+  const isCurrentAnswered =
+    currentQuestion && !!selectedAnswers[currentQuestion.question_id];
 
   const examInfoCard = useMemo(() => {
-    if (!examInfo.length) return null;
+    if (examInfo.length === 0) return null;
     const info = examInfo[0];
 
     return (
@@ -331,7 +378,10 @@ export default function ExamPage() {
           </div>
           <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
             <span className="mr-1">📝</span>
-            <span className="font-semibold">{displayQuestions.length}</span> асуулт
+            <span className="font-semibold">
+              {displayQuestions.length}
+            </span>{" "}
+            асуулт
           </div>
           <div className="px-3 py-1.5 bg-white/80 dark:bg-slate-900/80 rounded-lg backdrop-blur-sm">
             <span className="mr-1">📊</span>
@@ -342,30 +392,34 @@ export default function ExamPage() {
     );
   }, [examInfo, displayQuestions.length]);
 
-  if (!examInfo.length) return null;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 pb-16 lg:pb-0">
       {/* Mobile: Top Header */}
       <header className="md:hidden sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b shadow-sm">
         <div className="px-3 py-2">
+          {/* Timer + Submit Row */}
           <div className="flex items-center justify-between gap-2 mb-2">
-            <ITimer
-              endTime={examInfo[0].end_time}
-              examName={examInfo[0].title}
-              onTimeUp={handleTimeUp}
-            />
+            {examInfo.length > 0 && (
+              <ITimer
+                endTime={examInfo[0].end_time} // ✅ Зөвхөн end_time
+                examName={examInfo[0].title}
+                onTimeUp={handleTimeUp}
+              />
+            )}
 
-            <SubmitExamButtonWithDialog
-              userId={Number(userId)}
-              startEid={examInfo[0].start_eid}
-              examTime={examInfo[0].minut || 0}
-              examInfo={examInfo[0]}
-              totalQuestions={displayQuestions.length}
-              answeredQuestions={answeredQuestionsCount}
-            />
+            {examInfo.length > 0 && (
+              <SubmitExamButtonWithDialog
+                userId={Number(userId)}
+                startEid={examInfo[0].start_eid}
+                examTime={examInfo[0].minut || 0}
+                examInfo={examInfo[0]}
+                totalQuestions={displayQuestions.length}
+                answeredQuestions={answeredQuestionsCount}
+              />
+            )}
           </div>
 
+          {/* Progress Bar */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold">
@@ -379,13 +433,23 @@ export default function ExamPage() {
               <div
                 className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-200 ease-out"
                 style={{
-                  width: `${((currentQuestionIndex + 1) / displayQuestions.length) * 100}%`,
+                  width: `${
+                    ((currentQuestionIndex + 1) / displayQuestions.length) * 100
+                  }%`,
                 }}
               />
             </div>
           </div>
         </div>
       </header>
+      <AdvancedExamProctor
+        onSubmit={handleSubmitExam}
+        onLogout={handleLogout}
+        maxViolations={3}
+        enableWebcam={false}
+        strictMode={true}
+        enableFullscreen={true}
+      />
 
       {/* Desktop Layout */}
       <div className="hidden lg:flex gap-4 p-4 max-w-[1800px] mx-auto">
@@ -397,22 +461,29 @@ export default function ExamPage() {
               bookmarks={bookmarks}
               currentQuestionIndex={currentQuestionIndex}
               onJump={(qid) => {
-                const element = document.getElementById(`question-container-${qid}`);
+                const element = document.getElementById(
+                  `question-container-${qid}`
+                );
                 if (element) {
                   const yOffset = -80;
-                  const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                  const y =
+                    element.getBoundingClientRect().top +
+                    window.pageYOffset +
+                    yOffset;
                   window.scrollTo({ top: y, behavior: "smooth" });
                 }
               }}
             />
-            <SubmitExamButtonWithDialog
-              userId={Number(userId)}
-              startEid={examInfo[0].start_eid}
-              examTime={examInfo[0].minut || 0}
-              examInfo={examInfo[0]}
-              totalQuestions={displayQuestions.length}
-              answeredQuestions={answeredQuestionsCount}
-            />
+            {examInfo.length > 0 && (
+              <SubmitExamButtonWithDialog
+                userId={Number(userId)}
+                startEid={examInfo[0].start_eid}
+                examTime={examInfo[0].minut || 0}
+                examInfo={examInfo[0]}
+                totalQuestions={displayQuestions.length}
+                answeredQuestions={answeredQuestionsCount}
+              />
+            )}
           </div>
         </aside>
 
@@ -436,26 +507,30 @@ export default function ExamPage() {
               examId={Number(id)}
               userId={Number(userId)}
               saveAnswerToAPI={saveAnswerToAPI}
+              debouncedSaveToAPI={debouncedSaveToAPI}
             />
           ))}
         </main>
 
         <aside className="w-64 flex-shrink-0">
           <div className="sticky top-4">
-            <ITimer
-              endTime={examInfo[0].end_time}
-              examName={examInfo[0].title}
-              onTimeUp={handleTimeUp}
-            />
+            {examInfo.length > 0 && (
+              <ITimer
+                endTime={examInfo[0].end_time} // ✅ Зөвхөн end_time
+                examName={examInfo[0].title}
+                onTimeUp={handleTimeUp}
+              />
+            )}
           </div>
         </aside>
       </div>
 
       {/* Mobile: Layout */}
-      <div className="md:hidden px-3 py-3">
+      <div className="md:hidden px-3 py-3" ref={questionContainerRef}>
         <div className="space-y-3">
           {examInfoCard}
 
+          {/* Question Card */}
           {currentQuestion && (
             <div className="bg-white dark:bg-slate-900 rounded-xl border shadow-md">
               <QuestionItem
@@ -473,18 +548,22 @@ export default function ExamPage() {
                 examId={Number(id)}
                 userId={Number(userId)}
                 saveAnswerToAPI={saveAnswerToAPI}
-                isMobile
+                debouncedSaveToAPI={debouncedSaveToAPI}
+                isMobile={true}
               />
             </div>
           )}
 
+          {/* MiniMap */}
           <MiniMap
             questions={displayQuestions}
             choosedAnswers={selectedAnswers as Record<number, number>}
             bookmarks={bookmarks}
             currentQuestionIndex={currentQuestionIndex}
             onJump={(qid) => {
-              const index = displayQuestions.findIndex((q) => q.question_id === qid);
+              const index = displayQuestions.findIndex(
+                (q) => q.question_id === qid
+              );
               if (index >= 0) handleJumpToQuestion(index);
             }}
           />
@@ -509,11 +588,13 @@ export default function ExamPage() {
             disabled={currentQuestionIndex === displayQuestions.length - 1}
             className={`flex-1 h-11 font-medium transition-all ${
               isCurrentAnswered
-                ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
             }`}
           >
-            {currentQuestionIndex === displayQuestions.length - 1 ? "🏁 Дуусгах" : "Дараах"}
+            {currentQuestionIndex === displayQuestions.length - 1
+              ? "🏁 Дуусгах"
+              : "Дараах"}
             <ChevronRight size={18} className="ml-1" />
           </Button>
         </div>
@@ -535,7 +616,7 @@ export default function ExamPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-2xl max-w-sm mx-4">
             <div className="flex flex-col items-center gap-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
               <p className="text-lg font-semibold">Шалгалт дуусгаж байна...</p>
               <p className="text-sm text-muted-foreground text-center">
                 Хугацаа дууссан тул автоматаар илгээж байна
@@ -548,6 +629,7 @@ export default function ExamPage() {
   );
 }
 
+// QuestionItem component (same as before)
 const QuestionItem = React.memo((props: any) => {
   const {
     question,
@@ -564,6 +646,7 @@ const QuestionItem = React.memo((props: any) => {
     examId,
     userId,
     saveAnswerToAPI,
+    debouncedSaveToAPI,
     isMobile = false,
   } = props;
 
@@ -620,7 +703,9 @@ const QuestionItem = React.memo((props: any) => {
             questionText={question.question_name}
             answers={answers}
             mode="exam"
-            selectedAnswers={Array.isArray(selectedAnswer) ? selectedAnswer : []}
+            selectedAnswers={
+              Array.isArray(selectedAnswer) ? selectedAnswer : []
+            }
             onAnswerChange={onMultiAnswerChange}
           />
         )}
@@ -644,7 +729,11 @@ const QuestionItem = React.memo((props: any) => {
             mode="exam"
             onOrderChange={(orderedIds) => {
               onDragDropChange(question.question_id, orderedIds);
-              saveAnswerToAPI(question.question_id, orderedIds, question.que_type_id);
+              saveAnswerToAPI(
+                question.question_id,
+                orderedIds,
+                question.que_type_id
+              );
             }}
           />
         )}
@@ -657,7 +746,11 @@ const QuestionItem = React.memo((props: any) => {
             examId={examId}
             userId={userId}
             onMatchChange={(matches) => {
-              saveAnswerToAPI(question.question_id, matches, question.que_type_id);
+              saveAnswerToAPI(
+                question.question_id,
+                matches,
+                question.que_type_id
+              );
             }}
           />
         )}

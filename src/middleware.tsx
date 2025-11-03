@@ -37,26 +37,28 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 🧠 Cookie-аас currentExam утгыг авах
-  const currentExam = request.cookies.get("currentExam")?.value;
+  // Шалгалт дууссан эсэх cookie
+  const examFinished = request.cookies.get("examFinished")?.value === "true";
 
-  // 🟢 Хэрвээ хэрэглэгч /exam/[id] руу орж байвал cookie хадгалах
-  if (pathname.startsWith("/exam/")) {
-    const response = NextResponse.next();
-    response.cookies.set("currentExam", pathname, { path: "/" });
-    return response;
-  }
+  // /exam/[id] руу орох үед cookie-г зөвхөн шалгалт дуусаагүй үед хадгалах
+  // if (pathname.startsWith("/exam/") && !examFinished) {
+  //   const response = NextResponse.next();
+  //   response.cookies.set("currentExam", pathname, { path: "/" });
+  //   response.cookies.set("examFinished", "false", { path: "/" }); // Шинэ шалгалт эхэллээ
+  //   return response;
+  // }
 
-  // 🔴 Хэрвээ currentExam байгаа үед, өөр хуудас руу оролдох гэж байвал буцаах
-  if (currentExam && !pathname.startsWith("/exam")) {
-    return NextResponse.redirect(new URL(currentExam, request.url));
-  }
+  // const currentExam = request.cookies.get("currentExam")?.value;
 
-  // 🟢 Бусад бүх тохиолдолд үргэлжлүүлэх
+  // // Шалгалт дуусаагүй байхад л redirect хийх
+  // if (currentExam && !examFinished && !pathname.startsWith("/exam")) {
+  //   return NextResponse.redirect(new URL(currentExam, request.url));
+  // }
+
+  // Бусад бүх тохиолдолд үргэлжлүүлэх
   return NextResponse.next();
 }
 
-// ⚙️ Middleware аль замуудад ажиллахыг зааж өгнө
 export const config = {
   matcher: [
     "/((?!api/|_next/|favicon.ico|login|signup|not-found|global.css|public/).*)",

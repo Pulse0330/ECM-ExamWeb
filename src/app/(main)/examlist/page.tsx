@@ -35,7 +35,8 @@ export default function ExamListPage() {
   });
 
   const data: ExamData[] = queryData?.RetData || [];
-  const isEmptyResponse = queryData?.RetResponse?.ResponseMessage === "Амжилтгүй";
+  const isEmptyResponse =
+    queryData?.RetResponse?.ResponseMessage === "Амжилтгүй";
 
   // ✅ Remove duplicates from raw data
   const uniqueData = useMemo(() => {
@@ -55,18 +56,25 @@ export default function ExamListPage() {
     return {
       active: uniqueData.filter((exam: ExamData) => {
         const startTime = new Date(exam.ognoo);
-        const endTime = new Date(startTime.getTime() + exam.exam_minute * 60000);
+        const endTime = new Date(
+          startTime.getTime() + exam.exam_minute * 60000
+        );
         const isPurchased = exam.ispurchased === 1;
         const isFree = exam.ispaydescr === "Төлбөргүй";
         return now >= startTime && now <= endTime && (isFree || isPurchased);
       }),
-      free: uniqueData.filter((exam: ExamData) => exam.ispaydescr === "Төлбөргүй"),
+      free: uniqueData.filter(
+        (exam: ExamData) => exam.ispaydescr === "Төлбөргүй"
+      ),
       paid: uniqueData.filter(
-        (exam: ExamData) => exam.ispaydescr === "Төлбөртэй" && exam.ispurchased === 0
+        (exam: ExamData) =>
+          exam.ispaydescr === "Төлбөртэй" && exam.ispurchased === 0
       ),
       expired: uniqueData.filter((exam: ExamData) => {
         const startTime = new Date(exam.ognoo);
-        const endTime = new Date(startTime.getTime() + exam.exam_minute * 60000);
+        const endTime = new Date(
+          startTime.getTime() + exam.exam_minute * 60000
+        );
         return now > endTime;
       }),
       now,
@@ -255,10 +263,10 @@ export default function ExamListPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                    {searchTerm 
-                      ? "Хайлт олдсонгүй" 
-                      : isEmptyResponse 
-                      ? "Одоогоор шалгалт байхгүй байна" 
+                    {searchTerm
+                      ? "Хайлт олдсонгүй"
+                      : isEmptyResponse
+                      ? "Одоогоор шалгалт байхгүй байна"
                       : "Шалгалт олдсонгүй"}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -282,7 +290,11 @@ export default function ExamListPage() {
             </Card>
           ) : (
             filteredData.map((exam: ExamData) => (
-              <ExamCard key={exam.exam_id} exam={exam} now={categorizedData.now} />
+              <ExamCard
+                key={exam.exam_id}
+                exam={exam}
+                now={categorizedData.now}
+              />
             ))
           )}
         </div>

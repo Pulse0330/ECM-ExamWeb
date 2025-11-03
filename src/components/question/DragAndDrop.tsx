@@ -16,16 +16,23 @@ interface Answer {
   answer_name_html: string;
 }
 
+// ✅ Props-д disabled, showCorrect, correctIds нэмсэн
 type Props = {
   answers: Answer[];
   droppableId?: string;
   onOrderChange?: (orderedIds: number[]) => void;
+  disabled?: boolean;
+  showCorrect?: boolean;
+  correctIds?: number[];
 };
 
 export default function DragAndDrop({
   answers,
   droppableId = "droppable",
   onOrderChange,
+  disabled = false,
+  showCorrect = false,
+  correctIds = [],
 }: Props) {
   const [items, setItems] = useState<Answer[]>(answers || []);
 
@@ -34,7 +41,7 @@ export default function DragAndDrop({
   }, [answers]);
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
+    if (disabled || !result.destination) return;
 
     const newItems = Array.from(items);
     const [removed] = newItems.splice(result.source.index, 1);
@@ -52,34 +59,51 @@ export default function DragAndDrop({
         <Droppable droppableId={droppableId}>
           {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef}>
-              {items.map((item, index) => (
-                <Draggable
-                  key={item.answer_id}
-                  draggableId={String(item.answer_id)}
-                  index={index}
-                >
-                  {(providedDraggable, snapshot) => (
-                    <div
-                      ref={providedDraggable.innerRef}
-                      {...providedDraggable.draggableProps}
-                      {...providedDraggable.dragHandleProps}
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "default" }),
-                        "w-full cursor-move mb-2 justify-start transition-none",
-                        snapshot.isDragging &&
-                          "bg-accent ring-[2px] ring-ring/50"
-                      )}
-                      style={{ ...providedDraggable.draggableProps.style }}
-                    >
+              {items.map((item, index) => {
+                const isCorrect =
+                  showCorrect &&
+                  correctIds &&
+                  correctIds[index] === item.answer_id;
+
+                return (
+                  <Draggable
+                    key={item.answer_id}
+                    draggableId={String(item.answer_id)}
+                    index={index}
+                    isDragDisabled={disabled}
+                  >
+                    {(providedDraggable, snapshot) => (
                       <div
-                        dangerouslySetInnerHTML={{
-                          __html: item.answer_name_html,
-                        }}
-                      />
-                    </div>
-                  )}
-                </Draggable>
-              ))}
+                        ref={providedDraggable.innerRef}
+                        {...providedDraggable.draggableProps}
+                        {...providedDraggable.dragHandleProps}
+                        className={cn(
+                          buttonVariants({
+                            variant: "outline",
+                            size: "default",
+                          }),
+                          "w-full mb-2 justify-start transition-colors duration-200 select-none",
+                          disabled ? "cursor-default" : "cursor-move",
+                          snapshot.isDragging &&
+                            "bg-accent ring-2 ring-ring/50",
+                          isCorrect &&
+                            "border-green-500 bg-green-50 text-green-800",
+                          showCorrect &&
+                            !isCorrect &&
+                            "border-red-400 bg-red-50 text-red-700"
+                        )}
+                        style={{ ...providedDraggable.draggableProps.style }}
+                      >
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: item.answer_name_html,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                );
+              })}
               {provided.placeholder}
             </div>
           )}

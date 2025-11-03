@@ -10,12 +10,10 @@ export default function ServerDate() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const { setServerDate, getAdjustedTime } = useServerDateStore();
 
-  // Fetch server date only on mount/refresh (no refetchInterval)
+  // Fetch server date every 30 seconds and store in Zustand
   const { data: serverDateString } = useQuery({
     queryKey: ["serverTime"],
     queryFn: getServerDate,
-    staleTime: Infinity, // Data never becomes stale
-    gcTime: Infinity, // Keep in cache forever
   });
 
   // Update Zustand store when server date arrives
@@ -56,22 +54,22 @@ export default function ServerDate() {
   const seconds = String(currentTime.getUTCSeconds()).padStart(2, "0");
 
   return (
-    <div className="inline-flex items-center gap-3 px-4 py-2">
+    <div className="inline-flex items-center gap-3 px-4 py-2 ">
       {/* Date Section */}
       <div className="flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-        <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 tabular-nums">
+        <Calendar className="w-4 h-4" />
+        <span className="text-sm font-semibold  tabular-nums">
           {year}.{month}.{day}
         </span>
       </div>
 
       {/* Divider */}
-      <div className="w-px h-5 bg-gradient-to-b from-transparent via-blue-300 dark:via-blue-700 to-transparent"></div>
+      <div className="w-px h-5 bg-gradient-to-b from-transparent  to-transparent"></div>
 
       {/* Time Section */}
       <div className="flex items-center gap-2">
-        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
-        <div className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+        <Clock className="w-4 h-4  animate-pulse" />
+        <div className="font-mono text-sm font-semibold  tabular-nums">
           <span className="inline-block transition-all duration-300">
             {hours}
           </span>
@@ -97,8 +95,7 @@ export function ServerDateCompact() {
   const { data: serverDateString } = useQuery({
     queryKey: ["serverTime"],
     queryFn: getServerDate,
-    staleTime: Infinity,
-    gcTime: Infinity,
+    refetchInterval: 30000,
   });
 
   useEffect(() => {
@@ -145,8 +142,7 @@ export function ServerDateOnly() {
   const { data: serverDateString } = useQuery({
     queryKey: ["serverTime"],
     queryFn: getServerDate,
-    staleTime: Infinity,
-    gcTime: Infinity,
+    refetchInterval: 30000,
   });
 
   useEffect(() => {

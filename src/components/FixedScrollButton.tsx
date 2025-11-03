@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowUp, ArrowDown } from "lucide-react";
 
 type Props = {
-  scrollThreshold?: number; // optional scroll threshold
+  scrollThreshold?: number;
 };
 
 export default function FixedScrollButton({ scrollThreshold = 300 }: Props) {
@@ -42,8 +42,6 @@ export default function FixedScrollButton({ scrollThreshold = 300 }: Props) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
-  if (!isScrollable) return null; // Хэрвээ дэлгэц богино байвал товч харагдахгүй
-
   return (
     <Button
       variant="default"
@@ -59,19 +57,3 @@ export default function FixedScrollButton({ scrollThreshold = 300 }: Props) {
     </Button>
   );
 }
-
-/* Example usage (pages/index.tsx):
-
-import FixedScrollButton from "@/components/FixedScrollButton";
-
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <h1 className="text-2xl font-bold mb-6">Scroll Toggle Button Example</h1>
-      <p className="mb-[150vh]">Урт контент энд байрлана...</p>
-
-      <FixedScrollButton />
-    </main>
-  );
-}
-*/

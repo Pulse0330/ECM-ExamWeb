@@ -111,14 +111,11 @@ function SingleSelectQuestion({
                 </div>
               )}
 
+              {/* Answer text - урт текст тэлэх */}
               <span
-                className="flex-1 min-w-0 text-left text-sm sm:text-base break-words overflow-wrap-anywhere leading-relaxed"
+                className="flex-1 min-w-0 text-left text-sm sm:text-base break-words leading-relaxed whitespace-pre-wrap"
                 dangerouslySetInnerHTML={{
                   __html: option.answer_name_html || "",
-                }}
-                style={{
-                  wordBreak: "break-word",
-                  overflowWrap: "anywhere",
                 }}
               />
             </Button>

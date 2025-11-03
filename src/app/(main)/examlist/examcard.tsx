@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -15,6 +15,7 @@ import {
 import { ExamData } from "@/types/examlists";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import ExamRulesDialog from "@/components/question/alertdialog";
 
 interface ExamCardProps {
   exam: ExamData;
@@ -41,6 +42,21 @@ const getCardStyle = (
 const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
+  const [showRulesDialog, setShowRulesDialog] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+          window.innerWidth <= 768
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const examTimes = useMemo(() => {
     const startTime = new Date(exam.ognoo);
@@ -180,243 +196,267 @@ const ExamCard: React.FC<ExamCardProps> = React.memo(({ exam, now }) => {
     if (isPayable) {
       router.push(`/payment/${exam.exam_id}`);
     } else if (canTakeExam) {
-      try {
-        const examStorageKey = `exam_${exam.exam_id}_answers`;
-        const examStateKey = `exam_${exam.exam_id}_state`;
-        const examTimeKey = `exam_${exam.exam_id}_time`;
-
-        localStorage.removeItem(examStorageKey);
-        localStorage.removeItem(examStateKey);
-        localStorage.removeItem(examTimeKey);
-
-        Object.keys(localStorage).forEach((key) => {
-          if (key.includes(`exam_${exam.exam_id}`)) {
-            localStorage.removeItem(key);
-          }
-        });
-      } catch (error) {
-        console.error("Error clearing exam data:", error);
-      }
-
-      router.push(`/exam/${exam.exam_id}`);
+      // Show rules dialog before starting exam
+      setShowRulesDialog(true);
     }
   };
 
+  const handleConfirmRules = () => {
+    setShowRulesDialog(false);
+
+    // Clear exam data
+    try {
+      const examStorageKey = `exam_${exam.exam_id}_answers`;
+      const examStateKey = `exam_${exam.exam_id}_state`;
+      const examTimeKey = `exam_${exam.exam_id}_time`;
+
+      localStorage.removeItem(examStorageKey);
+      localStorage.removeItem(examStateKey);
+      localStorage.removeItem(examTimeKey);
+
+      Object.keys(localStorage).forEach((key) => {
+        if (key.includes(`exam_${exam.exam_id}`)) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error("Error clearing exam data:", error);
+    }
+
+    // Navigate to exam
+    router.push(`/exam/${exam.exam_id}`);
+  };
+
   return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={cn(
-        "group relative overflow-hidden rounded-2xl border transition-all duration-500 flex flex-col h-full backdrop-blur-sm",
-        cardStyle,
-        (canTakeExam || isPayable) &&
-          "cursor-pointer hover:scale-[1.03] hover:shadow-2xl",
-        isActive && "hover:shadow-emerald-500/20",
-        isPayable && "hover:shadow-red-500/20",
-        isFinished && canTakeExam && "hover:shadow-indigo-500/20"
-      )}
-      onClick={canTakeExam || isPayable ? handleAction : undefined}
-    >
-      {/* Decorative gradient overlay */}
+    <>
       <div
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          "absolute inset-0 opacity-0 transition-opacity duration-500",
-          isHovered && "opacity-100"
+          "group relative overflow-hidden rounded-2xl border transition-all duration-500 flex flex-col h-full backdrop-blur-sm",
+          cardStyle,
+          (canTakeExam || isPayable) &&
+            "cursor-pointer hover:scale-[1.03] hover:shadow-2xl",
+          isActive && "hover:shadow-emerald-500/20",
+          isPayable && "hover:shadow-red-500/20",
+          isFinished && canTakeExam && "hover:shadow-indigo-500/20"
         )}
+        onClick={canTakeExam || isPayable ? handleAction : undefined}
       >
+        {/* Decorative gradient overlay */}
         <div
           className={cn(
-            "absolute inset-0 bg-gradient-to-br opacity-5",
-            isActive && "from-emerald-400 to-green-600",
-            isPayable && "from-red-400 to-rose-600",
-            isUpcoming && "from-blue-400 to-indigo-600",
-            isFinished && "from-gray-400 to-gray-600"
+            "absolute inset-0 opacity-0 transition-opacity duration-500",
+            isHovered && "opacity-100"
           )}
-        />
-      </div>
-
-      <div className="relative p-4 sm:p-5 lg:p-6 flex flex-col flex-grow">
-        {/* Header Section */}
-        <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2 sm:gap-3">
-          <div className="flex-1 min-w-0">
-            <h2
-              title={exam.title}
-              className={cn(
-                "text-base sm:text-lg md:text-xl lg:text-2xl font-bold leading-tight min-h-[2.5em] transition-all duration-300",
-                isFinished
-                  ? "text-gray-600 dark:text-gray-400"
-                  : "text-gray-900 dark:text-gray-50",
-                isHovered ? "line-clamp-none" : "line-clamp-2"
-              )}
-            >
-              {exam.title}
-            </h2>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {isPurchased && (
-                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 size={16} />
-                  <span className="text-xs font-semibold">Худалдаж авсан</span>
-                </div>
-              )}
-              {isFree && (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-sm">
-                  <Sparkles size={14} />
-                  <span className="text-xs font-bold">Төлбөргүй</span>
-                </div>
-              )}
-            </div>
-          </div>
+        >
           <div
             className={cn(
-              "text-[10px] sm:text-xs text-white font-bold px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-full whitespace-nowrap uppercase tracking-wide flex items-center gap-1 sm:gap-1.5 shadow-lg",
-              countdownData.statusBadgeClass
+              "absolute inset-0 bg-gradient-to-br opacity-5",
+              isActive && "from-emerald-400 to-green-600",
+              isPayable && "from-red-400 to-rose-600",
+              isUpcoming && "from-blue-400 to-indigo-600",
+              isFinished && "from-gray-400 to-gray-600"
             )}
-          >
-            {isActive && (
-              <Sparkles size={10} className="animate-pulse sm:w-3 sm:h-3" />
-            )}
-            <span className="hidden xs:inline">{countdownData.statusText}</span>
-            <span className="xs:hidden">
-              {countdownData.statusText.slice(0, 4)}
-            </span>
-          </div>
+          />
         </div>
 
-        {/* Teacher Info */}
-        {exam.teach_name && (
+        <div className="relative p-4 sm:p-5 lg:p-6 flex flex-col flex-grow">
+          {/* Header Section */}
+          <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2 sm:gap-3">
+            <div className="flex-1 min-w-0">
+              <h2
+                title={exam.title}
+                className={cn(
+                  "text-base sm:text-lg md:text-xl lg:text-2xl font-bold leading-tight min-h-[2.5em] transition-all duration-300",
+                  isFinished
+                    ? "text-gray-600 dark:text-gray-400"
+                    : "text-gray-900 dark:text-gray-50",
+                  isHovered ? "line-clamp-none" : "line-clamp-2"
+                )}
+              >
+                {exam.title}
+              </h2>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {isPurchased && (
+                  <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 size={16} />
+                    <span className="text-xs font-semibold">
+                      Худалдаж авсан
+                    </span>
+                  </div>
+                )}
+                {isFree && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-sm">
+                    <Sparkles size={14} />
+                    <span className="text-xs font-bold">Төлбөргүй</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div
+              className={cn(
+                "text-[10px] sm:text-xs text-white font-bold px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-full whitespace-nowrap uppercase tracking-wide flex items-center gap-1 sm:gap-1.5 shadow-lg",
+                countdownData.statusBadgeClass
+              )}
+            >
+              {isActive && (
+                <Sparkles size={10} className="animate-pulse sm:w-3 sm:h-3" />
+              )}
+              <span className="hidden xs:inline">
+                {countdownData.statusText}
+              </span>
+              <span className="xs:hidden">
+                {countdownData.statusText.slice(0, 4)}
+              </span>
+            </div>
+          </div>
+
+          {/* Teacher Info */}
+          {exam.teach_name && (
+            <div
+              className={cn(
+                "mb-4 p-3 rounded-xl border backdrop-blur-sm transition-colors duration-300",
+                isFinished
+                  ? "bg-gray-50/50 dark:bg-gray-800/30 border-gray-200/50 dark:border-gray-700/50"
+                  : "bg-white/50 dark:bg-gray-900/30 border-gray-200/50 dark:border-gray-700/50"
+              )}
+            >
+              <p
+                className={cn(
+                  "text-xs sm:text-sm flex items-center gap-2",
+                  isFinished
+                    ? "text-gray-500 dark:text-gray-500"
+                    : "text-gray-700 dark:text-gray-300"
+                )}
+              >
+                <span className="font-semibold text-sm sm:text-base">👨‍🏫</span>
+                <span className="hidden xs:inline font-semibold">Багш:</span>
+                <span className="font-medium truncate">{exam.teach_name}</span>
+              </p>
+            </div>
+          )}
+
+          {/* Stats Grid */}
           <div
             className={cn(
-              "mb-4 p-3 rounded-xl border backdrop-blur-sm transition-colors duration-300",
+              "grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5",
               isFinished
-                ? "bg-gray-50/50 dark:bg-gray-800/30 border-gray-200/50 dark:border-gray-700/50"
-                : "bg-white/50 dark:bg-gray-900/30 border-gray-200/50 dark:border-gray-700/50"
+                ? "text-gray-500 dark:text-gray-500"
+                : "text-gray-700 dark:text-gray-300"
             )}
           >
-            <p
-              className={cn(
-                "text-xs sm:text-sm flex items-center gap-2",
-                isFinished
-                  ? "text-gray-500 dark:text-gray-500"
-                  : "text-gray-700 dark:text-gray-300"
-              )}
-            >
-              <span className="font-semibold text-sm sm:text-base">👨‍🏫</span>
-              <span className="hidden xs:inline font-semibold">Багш:</span>
-              <span className="font-medium truncate">{exam.teach_name}</span>
-            </p>
-          </div>
-        )}
-
-        {/* Stats Grid */}
-        <div
-          className={cn(
-            "grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5",
-            isFinished
-              ? "text-gray-500 dark:text-gray-500"
-              : "text-gray-700 dark:text-gray-300"
-          )}
-        >
-          <StatCard
-            icon={
-              <BookOpen
-                size={16}
-                className="text-indigo-500 sm:w-[18px] sm:h-[18px]"
-              />
-            }
-            label="Асуулт"
-            value={exam.que_cnt}
-            isFinished={isFinished}
-            isHovered={isHovered}
-          />
-          <StatCard
-            icon={
-              <Clock
-                size={16}
-                className="text-rose-500 sm:w-[18px] sm:h-[18px]"
-              />
-            }
-            label="Хугацаа"
-            value={`${exam.exam_minute} мин`}
-            isFinished={isFinished}
-            isHovered={isHovered}
-          />
-          <StatCard
-            icon={
-              <Calendar
-                size={16}
-                className="text-blue-500 sm:w-[18px] sm:h-[18px]"
-              />
-            }
-            label="Эхлэх"
-            value={startTime.toLocaleTimeString("mn-MN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            isFinished={isFinished}
-            isHovered={isHovered}
-          />
-          <StatCard
-            icon={
-              <Hourglass
-                size={16}
-                className="text-amber-500 sm:w-[18px] sm:h-[18px]"
-              />
-            }
-            label="Дуусах"
-            value={endTime.toLocaleTimeString("mn-MN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            isFinished={isFinished}
-            isHovered={isHovered}
-          />
-        </div>
-
-        {/* Payment Info */}
-        {isPayable && (
-          <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/20 rounded-xl border-2 border-red-200 dark:border-red-800/50 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs sm:text-sm font-semibold text-red-700 dark:text-red-300">
-                Төлбөр:
-              </span>
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold text-red-600 dark:text-red-400 flex items-center gap-0.5 sm:gap-1">
-                <DollarSign size={16} className="sm:w-5 sm:h-5" />
-                {exam.amount.toLocaleString()}₮
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Action Button - Shadcn UI Button */}
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleAction();
-          }}
-          disabled={isLocked}
-          size="lg"
-          className={cn(
-            "w-full text-sm sm:text-base font-bold shadow-lg group/btn",
-            isActive &&
-              "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:shadow-xl",
-            isPayable &&
-              "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/40 hover:shadow-red-500/60 hover:shadow-xl",
-            isFinished &&
-              canTakeExam &&
-              "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-indigo-500/40 hover:shadow-indigo-500/60 hover:shadow-xl",
-            (canTakeExam || isPayable) && "hover:scale-[1.02]"
-          )}
-        >
-          <span className="truncate">{countdownData.buttonText}</span>
-          {(canTakeExam || isPayable) && (
-            <ArrowRight
-              size={18}
-              className="transition-transform duration-300 group-hover/btn:translate-x-1 flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5"
+            <StatCard
+              icon={
+                <BookOpen
+                  size={16}
+                  className="text-indigo-500 sm:w-[18px] sm:h-[18px]"
+                />
+              }
+              label="Асуулт"
+              value={exam.que_cnt}
+              isFinished={isFinished}
+              isHovered={isHovered}
             />
+            <StatCard
+              icon={
+                <Clock
+                  size={16}
+                  className="text-rose-500 sm:w-[18px] sm:h-[18px]"
+                />
+              }
+              label="Хугацаа"
+              value={`${exam.exam_minute} мин`}
+              isFinished={isFinished}
+              isHovered={isHovered}
+            />
+            <StatCard
+              icon={
+                <Calendar
+                  size={16}
+                  className="text-blue-500 sm:w-[18px] sm:h-[18px]"
+                />
+              }
+              label="Эхлэх"
+              value={startTime.toLocaleTimeString("mn-MN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              isFinished={isFinished}
+              isHovered={isHovered}
+            />
+            <StatCard
+              icon={
+                <Hourglass
+                  size={16}
+                  className="text-amber-500 sm:w-[18px] sm:h-[18px]"
+                />
+              }
+              label="Дуусах"
+              value={endTime.toLocaleTimeString("mn-MN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              isFinished={isFinished}
+              isHovered={isHovered}
+            />
+          </div>
+
+          {/* Payment Info */}
+          {isPayable && (
+            <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/20 rounded-xl border-2 border-red-200 dark:border-red-800/50 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs sm:text-sm font-semibold text-red-700 dark:text-red-300">
+                  Төлбөр:
+                </span>
+                <span className="text-lg sm:text-xl lg:text-2xl font-bold text-red-600 dark:text-red-400 flex items-center gap-0.5 sm:gap-1">
+                  <DollarSign size={16} className="sm:w-5 sm:h-5" />
+                  {exam.amount.toLocaleString()}₮
+                </span>
+              </div>
+            </div>
           )}
-        </Button>
+
+          {/* Action Button - Shadcn UI Button */}
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAction();
+            }}
+            disabled={isLocked}
+            size="lg"
+            className={cn(
+              "w-full text-sm sm:text-base font-bold shadow-lg group/btn",
+              isActive &&
+                "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-500/40 hover:shadow-emerald-500/60 hover:shadow-xl",
+              isPayable &&
+                "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/40 hover:shadow-red-500/60 hover:shadow-xl",
+              isFinished &&
+                canTakeExam &&
+                "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-indigo-500/40 hover:shadow-indigo-500/60 hover:shadow-xl",
+              (canTakeExam || isPayable) && "hover:scale-[1.02]"
+            )}
+          >
+            <span className="truncate">{countdownData.buttonText}</span>
+            {(canTakeExam || isPayable) && (
+              <ArrowRight
+                size={18}
+                className="transition-transform duration-300 group-hover/btn:translate-x-1 flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5"
+              />
+            )}
+          </Button>
+        </div>
       </div>
-    </div>
+
+      {/* Rules Dialog */}
+      <ExamRulesDialog
+        open={showRulesDialog}
+        onOpenChange={setShowRulesDialog}
+        onConfirm={handleConfirmRules}
+        examTitle={exam.title}
+        isMobile={isMobile}
+      />
+    </>
   );
 });
 

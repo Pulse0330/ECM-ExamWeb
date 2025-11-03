@@ -285,7 +285,7 @@ export default function SorilPage() {
   }, [examInfo, userId, id, router, setTestId]);
 
   const handleLogout = useCallback(() => {
-    router.push("/login");
+    router.push("/home");
   }, [router]);
 
   // Cleanup timeouts
